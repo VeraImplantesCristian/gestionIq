@@ -1,0 +1,6 @@
+/* src/assets/css/tailwind.css */
+
+/* Las directivas de Tailwind inyectan los estilos base, de componentes y de utilidades. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
