@@ -1,4 +1,4 @@
-<!-- src/components/ReportDrawer.vue -->
+<!-- src/components/ReportDrawer.vue (COMPLETO Y CORREGIDO) -->
 <template>
   <div>
     <Transition name="fade">
@@ -29,27 +29,47 @@
             </div>
           </div>
 
-          <!-- Cuerpo con Scroll -->
-          <div class="flex-grow p-6 overflow-y-auto">
+          <!-- Cuerpo con Scroll (con guardia v-if) -->
+          <div v-if="formData" class="flex-grow p-6 overflow-y-auto">
             <!-- Pestaña/Vista de Detalles y Edición -->
             <div v-show="activeTab === 'details' || isEditing" class="space-y-8">
-              <section v-if="formData" class="space-y-4 text-sm">
+              <section class="space-y-4 text-sm">
                 <!-- Datos de la Cirugía -->
                 <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-slate-400">Datos de la Cirugía</h3>
                 <div class="p-4 bg-slate-50 rounded-lg border dark:bg-slate-700/50 dark:border-slate-700">
-                  <EditableField label="Paciente" v-model="formData.paciente" :is-editing="isEditing" is-bold />
-                  <EditableField label="Médico" v-model="formData.medico" :is-editing="isEditing" />
-                  <EditableField label="Fecha" v-model="formData.fecha_cirugia" :is-editing="isEditing" type="date" />
-                  <EditableField label="Lugar" v-model="formData.lugar_cirugia" :is-editing="isEditing" />
-                  <EditableField label="ID Cirugía" v-model="formData.id_cirugia" :is-editing="isEditing" />
+                  
+                  <EditableField v-if="isEditing" label="Paciente" v-model="formData.paciente" :is-editing="true" is-bold />
+                  <EditableField v-else label="Paciente" :model-value="formData.paciente" :is-editing="false" is-bold />
+
+                  <EditableField v-if="isEditing" label="Médico" v-model="formData.medico" :is-editing="true" />
+                  <EditableField v-else label="Médico" :model-value="formData.medico" :is-editing="false" />
+
+                  <EditableField v-if="isEditing" label="Tipo de Cirugía" v-model="formData.tipo_cirugia" :is-editing="true" />
+                  <EditableField v-else label="Tipo de Cirugía" :model-value="formData.tipo_cirugia" :is-editing="false" />
+                  
+                  <EditableField v-if="isEditing" label="Fecha" v-model="formData.fecha_cirugia" :is-editing="true" type="date" />
+                  <EditableField v-else label="Fecha" :model-value="formData.fecha_cirugia" :is-editing="false" type="date" />
+
+                  <EditableField v-if="isEditing" label="Lugar" v-model="formData.lugar_cirugia" :is-editing="true" />
+                  <EditableField v-else label="Lugar" :model-value="formData.lugar_cirugia" :is-editing="false" />
+
+                  <EditableField v-if="isEditing" label="ID Cirugía" v-model="formData.id_cirugia" :is-editing="true" />
+                  <EditableField v-else label="ID Cirugía" :model-value="formData.id_cirugia" :is-editing="false" />
                 </div>
 
                 <!-- Informe del Instrumentador -->
                 <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-slate-400">Informe del Instrumentador</h3>
                 <div class="p-4 bg-slate-50 rounded-lg border dark:bg-slate-700/50 dark:border-slate-700">
-                  <EditableField label="Completado por" v-model="formData.instrumentador_completado" :is-editing="isEditing" is-bold />
-                  <EditableField label="Set Completo" v-model="formData.set_completo" :is-editing="isEditing" type="boolean" />
-                  <EditableField v-if="formData.set_completo === false || isEditing" label="Informó Faltante" v-model="formData.informe_faltante" :is-editing="isEditing" type="boolean" />
+                  <EditableField label="Completado por" :model-value="formData.instrumentador_completado" :is-editing="false" is-bold />
+                  <EditableField label="DNI" :model-value="formData.instrumentador_dni" :is-editing="false" />
+                  
+                  <EditableField v-if="isEditing" label="Set Completo" v-model="formData.set_completo" :is-editing="true" type="boolean" />
+                  <EditableField v-else label="Set Completo" :model-value="formData.set_completo" :is-editing="false" type="boolean" />
+
+                  <template v-if="formData.set_completo === false || isEditing">
+                    <EditableField v-if="isEditing" label="Informó Faltante" v-model="formData.informe_faltante" :is-editing="true" type="boolean" />
+                    <EditableField v-else label="Informó Faltante" :model-value="formData.informe_faltante" :is-editing="false" type="boolean" />
+                  </template>
                 </div>
 
                 <!-- Evaluación -->
@@ -65,18 +85,27 @@
                 <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-slate-400">Datos Adicionales de Importancia</h3>
                 <div class="p-4 bg-blue-50 rounded-lg border border-blue-200 dark:bg-blue-900/20 dark:border-blue-500/30">
                   <h4 class="text-lg font-bold text-blue-900 dark:text-blue-200 mb-2">Consumo Realizado</h4>
-                  <EditableField label="" v-model="formData.consumo_realizado" :is-editing="isEditing" type="textarea" :show-label="false" />
+                  <EditableField v-if="isEditing" label="" v-model="formData.consumo_realizado" :is-editing="true" type="textarea" :show-label="false" />
+                  <EditableField v-else label="" :model-value="formData.consumo_realizado" :is-editing="false" type="textarea" :show-label="false" />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="p-4 bg-slate-50 rounded-lg border dark:bg-slate-700/50 dark:border-slate-700">
                     <h4 class="font-bold text-slate-800 dark:text-slate-100 mb-2">Observaciones</h4>
-                    <EditableField label="" v-model="formData.observaciones" :is-editing="isEditing" type="textarea" :show-label="false" />
+                    <EditableField v-if="isEditing" label="" v-model="formData.observaciones" :is-editing="true" type="textarea" :show-label="false" />
+                    <EditableField v-else label="" :model-value="formData.observaciones" :is-editing="false" type="textarea" :show-label="false" />
                   </div>
                   <div class="p-4 bg-slate-50 rounded-lg border dark:bg-slate-700/50 dark:border-slate-700 space-y-2">
-                    <EditableField label="Representante" v-model="formData.representante_ventas" :is-editing="isEditing" simple />
-                    <EditableField label="Duración Cirugía" v-model="formData.duracion_cirugia" :is-editing="isEditing" simple />
-                    <EditableField label="Logística" v-model="formData.tipo_logistica" :is-editing="isEditing" simple />
-                    <EditableField label="Transporte" v-model="formData.transporte_utilizado" :is-editing="isEditing" simple />
+                    <EditableField v-if="isEditing" label="Representante" v-model="formData.representante_ventas" :is-editing="true" simple />
+                    <EditableField v-else label="Representante" :model-value="formData.representante_ventas" :is-editing="false" simple />
+
+                    <EditableField v-if="isEditing" label="Duración Cirugía" v-model="formData.duracion_cirugia" :is-editing="true" simple />
+                    <EditableField v-else label="Duración Cirugía" :model-value="formData.duracion_cirugia" :is-editing="false" simple />
+
+                    <EditableField v-if="isEditing" label="Logística" v-model="formData.tipo_logistica" :is-editing="true" simple />
+                    <EditableField v-else label="Logística" :model-value="formData.tipo_logistica" :is-editing="false" simple />
+
+                    <EditableField v-if="isEditing" label="Transporte" v-model="formData.transporte_utilizado" :is-editing="true" simple />
+                    <EditableField v-else label="Transporte" :model-value="formData.transporte_utilizado" :is-editing="false" simple />
                   </div>
                 </div>
 
@@ -139,8 +168,8 @@
       </div>
     </Transition>
 
-    <div :class="isGeneratingPdf ? 'fixed top-0 -left-[9999px]' : 'hidden'">
-      <ReportPDF :reporte="reporte" :instrumentador-dni="instrumentadorDni" ref="pdfComponentRef" />
+    <div v-if="formData" :class="isGeneratingPdf ? 'fixed top-0 -left-[9999px]' : 'hidden'">
+      <ReportPDF :reporte="formData" :instrumentador-dni="formData.instrumentador_dni" ref="pdfComponentRef" />
     </div>
   </div>
 </template>
@@ -165,13 +194,16 @@ const activeTab = ref('details');
 const isEditing = ref(false);
 const isSaving = ref(false);
 const formData = ref(null);
-const instrumentadorDni = ref(null);
 
 watch(() => props.reporte, (newReporte) => {
   if (newReporte) {
     formData.value = JSON.parse(JSON.stringify(newReporte));
+  } else {
+    formData.value = null;
   }
 }, { deep: true, immediate: true });
+
+// La función 'formatDisplayValue' ha sido eliminada. La lógica ahora reside en EditableField.vue
 
 const close = () => {
   isEditing.value = false;
@@ -192,7 +224,7 @@ const saveChanges = async () => {
   if (!formData.value) return;
   isSaving.value = true;
   try {
-    const { id, created_at, token, url_firma, ...updateData } = formData.value;
+    const { id, created_at, token, url_firma, instrumentadores, ...updateData } = formData.value;
     const { error } = await supabase.from('reportes').update(updateData).eq('id', id);
     if (error) throw error;
     toast.success('Reporte actualizado con éxito.');

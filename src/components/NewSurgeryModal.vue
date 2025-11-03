@@ -1,4 +1,4 @@
-<!-- src/components/NewSurgeryModal.vue -->
+<!-- src/components/NewSurgeryModal.vue (COMPLETO Y MEJORADO) -->
 <template>
   <Transition name="fade">
     <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" @click.self="close">
@@ -10,7 +10,7 @@
             <h2 class="text-2xl font-bold text-gray-800 dark:text-slate-100">Nueva Cirugía / Asignar</h2>
           </div>
 
-          <!-- Cuerpo del Formulario (simplificado) -->
+          <!-- Cuerpo del Formulario -->
           <div class="p-6 space-y-4">
             <div>
               <label for="paciente" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Paciente</label>
@@ -27,6 +27,11 @@
             <div>
               <label for="lugar_cirugia" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Lugar de Cirugía (Institución)</label>
               <input type="text" id="lugar_cirugia" v-model="form.lugar_cirugia" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100">
+            </div>
+            <!-- CAMBIO 1: Se añade el nuevo campo al formulario -->
+            <div>
+              <label for="tipo_cirugia" class="block text-sm font-medium text-gray-700 dark:text-slate-300">Tipo de Cirugía</label>
+              <input type="text" id="tipo_cirugia" v-model="form.tipo_cirugia" placeholder="Ej: Artroplastia de Rodilla" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100">
             </div>
           </div>
 
@@ -46,22 +51,25 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, watch } from 'vue';
 import { supabase } from '../services/supabase.js';
+import { useToast } from 'vue-toastification';
 
 const props = defineProps({
   show: Boolean,
 });
 
 const emit = defineEmits(['close', 'surgery-created']);
+const toast = useToast();
 
 const isSubmitting = ref(false);
 const form = reactive({
-  // **MODIFICADO:** id_cirugia eliminado del formulario
   paciente: '',
   medico: '',
   fecha_cirugia: '',
   lugar_cirugia: '',
+  // CAMBIO 2: Se añade la nueva propiedad al estado del formulario
+  tipo_cirugia: '', 
   estado: 'Pendiente',
 });
 
@@ -70,35 +78,43 @@ const resetForm = () => {
   form.medico = '';
   form.fecha_cirugia = '';
   form.lugar_cirugia = '';
+  // CAMBIO 3: Se resetea el nuevo campo
+  form.tipo_cirugia = '';
 };
 
 const handleSubmit = async () => {
   isSubmitting.value = true;
   try {
-    // La base de datos asignará el id_cirugia automáticamente
     const { data, error } = await supabase
       .from('reportes')
       .insert([form])
-      .select();
+      .select()
+      .single(); // Usamos .single() para obtener un objeto en lugar de un array
 
     if (error) throw error;
 
     if (data) {
-      emit('surgery-created', data[0]);
+      emit('surgery-created', data);
     }
     close();
   } catch (error) {
-    // El manejo de errores de ID duplicado ya no es necesario aquí
-    alert(`Error al crear la cirugía: ${error.message}`);
+    toast.error(`Error al crear la cirugía: ${error.message}`);
   } finally {
     isSubmitting.value = false;
   }
 };
 
 const close = () => {
-  resetForm();
   emit('close');
 };
+
+// Reseteamos el formulario solo cuando el modal se cierra, no cuando se abre.
+watch(() => props.show, (newValue) => {
+  if (!newValue) {
+    setTimeout(resetForm, 300); // Pequeño delay para que no se vea el reseteo durante la animación de cierre
+  }
+});
+
 </script>
 
 <style scoped>

@@ -1,4 +1,4 @@
-<!-- src/components/EditableField.vue -->
+<!-- src/components/EditableField.vue (ACTUALIZADO) -->
 <template>
   <div :class="simple ? 'grid grid-cols-2 items-center' : 'grid grid-cols-3 gap-4 py-2 border-b border-slate-200/50 last:border-b-0 dark:border-slate-600/50 items-start'">
     <!-- Etiqueta (Label) -->
@@ -6,9 +6,8 @@
 
     <!-- Contenido (Editable o Solo Lectura) -->
     <div :class="showLabel ? (simple ? 'text-right' : 'col-span-2') : 'col-span-3'">
-      <!-- MODO EDICIÓN -->
+      <!-- MODO EDICIÓN (Sin cambios) -->
       <template v-if="isEditing">
-        <!-- Campo de Texto Largo (Textarea) -->
         <textarea 
           v-if="type === 'textarea'"
           :id="label"
@@ -17,8 +16,6 @@
           rows="4"
           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-slate-900 dark:border-slate-600 dark:text-white sm:text-sm"
         ></textarea>
-        
-        <!-- Selector Booleano (Sí/No) -->
         <select 
           v-else-if="type === 'boolean'"
           :id="label"
@@ -30,8 +27,6 @@
           <option :value="false">No</option>
           <option :value="null">N/A</option>
         </select>
-
-        <!-- Campo de Fecha o Texto Normal -->
         <input 
           v-else
           :id="label"
@@ -44,8 +39,9 @@
 
       <!-- MODO SOLO LECTURA -->
       <template v-else>
+        <!-- AHORA SIEMPRE USA displayValue, que es la única fuente de la verdad para formatear -->
         <p class="text-gray-800 dark:text-slate-100 text-sm whitespace-pre-wrap" :class="{'font-bold': isBold}">
-          {{ formatDisplayValue(modelValue) }}
+          {{ displayValue }}
         </p>
       </template>
     </div>
@@ -53,13 +49,18 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
+
+// --- COMIENZO DE CAMBIOS ---
+
 const props = defineProps({
   label: String,
-  modelValue: [String, Number, Boolean, Date],
+  // 'modelValue' es ahora la única fuente de datos. El prop 'value' fue eliminado.
+  modelValue: [String, Number, Boolean, Date, null],
   isEditing: Boolean,
   type: {
     type: String,
-    default: 'text' // text, textarea, boolean, date
+    default: 'text'
   },
   showLabel: {
     type: Boolean,
@@ -71,21 +72,38 @@ const props = defineProps({
 
 defineEmits(['update:modelValue']);
 
-// Formatea el valor para mostrarlo en modo de solo lectura.
-const formatDisplayValue = (value) => {
-  if (value === null || value === undefined || value === '') return 'N/A';
-  if (props.type === 'boolean') return value ? '✅ Sí' : '❌ No';
+// 'displayValue' ahora contiene TODA la lógica de formateo, basándose únicamente en modelValue y type.
+const displayValue = computed(() => {
+  const val = props.modelValue;
+
+  // Manejo de casos vacíos o nulos primero.
+  if (val === null || val === undefined || val === '') {
+    return 'N/A';
+  }
+
+  // Lógica de formateo específica por tipo.
+  if (props.type === 'boolean') {
+    // Maneja tanto el booleano 'false' como el string 'false'.
+    return val && String(val) !== 'false' ? '✅ Sí' : '❌ No';
+  }
+
   if (props.type === 'date') {
-    const date = new Date(value);
-    // Sumamos un día para corregir el problema de zona horaria al mostrar.
+    // Comprueba si la fecha es válida antes de intentar formatearla.
+    const date = new Date(val);
+    if (isNaN(date.getTime())) return 'Fecha inválida';
+    
+    // Corrige el problema de zona horaria (timezone) para mostrar la fecha correcta.
     const userTimezoneOffset = date.getTimezoneOffset() * 60000;
     const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
     return adjustedDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
-  return value;
-};
 
-// Formatea la fecha para que el <input type="date"> la entienda.
+  // Si no es un tipo especial, devuelve el valor tal cual.
+  return val;
+});
+
+// --- FIN DE CAMBIOS ---
+
 const formatDateForInput = (value) => {
   if (!value) return '';
   const date = new Date(value);

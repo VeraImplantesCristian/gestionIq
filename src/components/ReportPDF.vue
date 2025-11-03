@@ -1,45 +1,47 @@
-<!-- src/components/ReportPDF.vue -->
+<!-- src/components/ReportPDF.vue (VERSIÓN FINAL Y DEFINITIVA) -->
 <template>
-  <div ref="pdfTemplateRef" class="bg-white text-black p-8 font-sans w-[210mm] min-h-[296mm]">
-    <div v-if="reporte" class="flex flex-col h-full text-xs">
+  <div ref="pdfTemplateRef" class="bg-white text-black p-8 font-sans w-[794px] min-h-[1122px]">
+    <div v-if="reporte" class="flex flex-col h-full text-sm">
       
-      <header class="flex justify-between items-start border-b-2 border-slate-200 pb-3">
+      <header class="flex justify-between items-start border-b-2 border-slate-200 pb-2">
         <img src="/2.svg" alt="Districorr Logo" class="h-16">
         <div class="text-right">
-          <h1 class="text-2xl font-bold text-[#1E3A8A]">Reporte de Cirugía</h1>
-          <p class="text-slate-600 font-semibold text-sm">Ficha de Identificación del Instrumentador Quirúrgico</p>
-          <div class="text-xs text-slate-500 mt-1">
+          <h1 class="text-xl font-bold text-[#1E3A8A]">Reporte de Cirugía</h1>
+          <p class="text-slate-600 text-sm font-medium">Ficha de Identificación del Instrumentador Quirúrgico</p>
+          <div class="text-xs text-slate-500">
             <span>ID Reporte: {{ reporte.id_cirugia }}</span> |
             <span>Generado: {{ new Date().toLocaleString('es-ES') }}</span>
           </div>
         </div>
       </header>
 
-      <main class="flex-grow space-y-4 mt-4">
+      <main class="flex-grow space-y-2 mt-3">
         <section class="p-3 bg-slate-50 rounded-lg border border-slate-200">
-          <div class="grid grid-cols-2 gap-x-6 gap-y-1">
-            <InfoItem icon="UserIcon" label="Paciente" :value="reporte.paciente" is-bold />
-            <InfoItem icon="ClipboardDocumentCheckIcon" label="Médico" :value="reporte.medico" />
-            <InfoItem icon="CalendarIcon" label="Fecha de Cirugía" :value="formatDate(reporte.fecha_cirugia)" />
-            <InfoItem icon="MapPinIcon" label="Lugar / Institución" :value="reporte.lugar_cirugia" />
+          <div class="flex flex-row flex-wrap justify-between">
+            <InfoItem class="min-w-[33%] mb-1 pr-4" icon="UserIcon" label="Paciente" :value="reporte.paciente" is-bold />
+            <InfoItem class="min-w-[33%] mb-1 pr-4" icon="ClipboardDocumentCheckIcon" label="Médico" :value="reporte.medico" />
+            <InfoItem class="min-w-[33%] mb-1 pr-4" icon="DocumentTextIcon" label="Tipo de Cirugía" :value="reporte.tipo_cirugia" />
+            <InfoItem class="min-w-[33%] mb-1 pr-4" icon="CalendarIcon" label="Fecha de Cirugía" :value="formatDate(reporte.fecha_cirugia)" />
+            <InfoItem class="min-w-[66%] mb-1 pr-4" icon="MapPinIcon" label="Lugar / Institución" :value="reporte.lugar_cirugia" />
           </div>
         </section>
 
         <section>
-          <div class="grid grid-cols-2 gap-x-6">
-            <InfoItem icon="UserCircleIcon" label="Completado por" :value="reporte.instrumentador_completado" />
-            <InfoItem icon="IdentificationIcon" label="DNI" :value="instrumentadorDni" />
+          <div class="flex flex-row flex-wrap justify-between">
+            <InfoItem class="min-w-[33%] pr-4" icon="UserCircleIcon" label="Completado por" :value="reporte.instrumentador_completado" />
+            <InfoItem class="min-w-[33%] pr-4" icon="IdentificationIcon" label="DNI" :value="reporte.instrumentador_dni" />
+            <InfoItem class="min-w-[33%] pr-4" icon="ClockIcon" label="Ficha Completada" :value="formatDateTime(reporte.fecha_envio)" />
           </div>
         </section>
 
-        <section class="grid grid-cols-2 gap-x-6">
+        <section class="grid grid-cols-2 gap-x-6 pt-1">
           <div class="space-y-1">
-            <h3 class="text-sm font-bold text-slate-700">Cuestionario</h3>
+            <h3 class="text-base font-bold text-slate-800 border-l-4 border-[#1E3A8A] pl-2">Cuestionario</h3>
             <InfoItem label="Set completo recibido" :value="formatBoolean(reporte.set_completo)" />
             <InfoItem v-if="reporte.set_completo === false" label="Faltantes informados a tiempo" :value="formatBoolean(reporte.informe_faltante)" />
           </div>
           <div class="space-y-1">
-            <h3 class="text-sm font-bold text-slate-700">Evaluación</h3>
+            <h3 class="text-base font-bold text-slate-800 border-l-4 border-[#1E3A8A] pl-2">Evaluación</h3>
             <RatingStars label="Puntualidad" :rating="reporte.rating_puntualidad" />
             <RatingStars label="Condiciones" :rating="reporte.rating_condiciones" />
             <RatingStars label="Asesoramiento" :rating="reporte.rating_asesoramiento" />
@@ -48,53 +50,68 @@
         </section>
         
         <section>
-          <h2 class="text-base font-bold text-slate-800 mb-2 border-b pb-1">Datos Adicionales</h2>
-          <InfoBlock label="Consumo Realizado" :value="reporte.consumo_realizado" />
-          <div class="grid grid-cols-2 gap-x-6 mt-3">
-            <InfoBlock label="Comentarios / Observaciones" :value="reporte.observaciones" />
-            <div class="space-y-1 text-xs border p-2 rounded-md bg-slate-50">
-              <InfoItem label="Representante" :value="reporte.representante_ventas" />
-              <InfoItem label="Duración Cirugía" :value="reporte.duracion_cirugia" />
-              <InfoItem label="Logística" :value="humanize(reporte.tipo_logistica)" />
-              <InfoItem label="Transporte" :value="reporte.transporte_utilizado" />
+          <h2 class="text-lg font-bold text-slate-800 mb-1 border-l-4 border-[#1E3A8A] pl-2">Datos Adicionales</h2>
+          <div class="space-y-2 mt-2">
+            <InfoBlock label="Consumo Realizado" :value="reporte.consumo_realizado" is-highlighted />
+            <div class="grid grid-cols-2 gap-x-6">
+              <InfoBlock label="Comentarios / Observaciones" :value="reporte.observaciones" />
+              <div class="space-y-1 border p-3 rounded-md bg-slate-50">
+                <InfoItem label="Representante" :value="reporte.representante_ventas" />
+                <InfoItem label="Duración Cirugía" :value="reporte.duracion_cirugia" />
+                <InfoItem label="Logística" :value="humanize(reporte.tipo_logistica)" />
+                <InfoItem label="Transporte" :value="reporte.transporte_utilizado" />
+              </div>
             </div>
-          </div>
-        </section>
-        
-        <section v-if="reporte.url_firma" class="pt-2">
-          <h2 class="text-base font-bold text-slate-800 mb-2 border-b pb-1">Firma del Instrumentador</h2>
-          <div class="mt-2 text-center">
-            <div class="border-2 border-slate-200 p-2 inline-block rounded-md shadow-inner">
-              <img :src="reporte.url_firma" alt="Firma" class="h-32 object-contain">
-            </div>
-            <p class="mt-2 font-semibold text-sm">{{ reporte.instrumentador_completado }}</p>
-            <p class="text-xs text-slate-500 italic">Firma digital registrada en el sistema</p>
           </div>
         </section>
       </main>
 
-      <footer class="text-center text-xs text-slate-500 pt-3 border-t-2 border-slate-200 mt-auto">
-        Reporte generado automáticamente por Districorr – {{ new Date().toLocaleString('es-ES') }}<br>
-        9 de julio 1251 -  DISTRICORR SRL
+<!-- --- INICIO DEL FOOTER FINAL --- -->
+      <footer class="mt-auto pt-4 border-t-2 border-slate-200">
+        <div v-if="reporte.url_firma">
+          <!-- Declaración de veracidad -->
+          <p class="text-center text-xs text-slate-500 italic mb-4">
+            Declaro que la información contenida en este reporte es veraz y completa.
+          </p>
+          
+          <!-- Contenedor de la firma y aclaración -->
+          <div class="max-w-xs mx-auto text-center">
+            
+            <!-- 
+              🔴 LA ÚNICA MODIFICACIÓN ESTÁ AQUÍ 🔴
+              Cambiamos h-32 por h-36 para hacer la caja (y por lo tanto la firma) más alta.
+              Puedes probar con h-40 si la quieres aún más grande.
+            -->
+            <div class="w-full h-36 flex items-center justify-center mb-2">
+              <img :src="reporte.url_firma" alt="Firma" class="max-w-full max-h-full object-contain">
+            </div>
+
+            <!-- Línea y aclaración de firma -->
+            <div>
+              <p class="border-t-2 border-slate-400 pt-1 font-semibold text-base text-slate-800">
+                {{ reporte.instrumentador_completado }}
+              </p>
+              <p class="text-xs text-slate-500">Firma y Aclaración</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="text-center text-xs text-slate-400 pt-3 mt-4 border-t border-slate-100">
+          Reporte generado automáticamente por Districorr – {{ new Date().toLocaleString('es-ES') }}<br>
+          9 de julio 1251 -  DISTRICORR SRL
+        </div>
       </footer>
+      <!-- --- FIN DEL FOOTER FINAL --- -->
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, defineComponent, h } from 'vue';
-import { UserIcon, ClipboardDocumentCheckIcon, CalendarIcon, MapPinIcon, UserCircleIcon, IdentificationIcon } from '@heroicons/vue/24/outline';
+import { UserIcon, ClipboardDocumentCheckIcon, CalendarIcon, MapPinIcon, UserCircleIcon, IdentificationIcon, DocumentTextIcon, ClockIcon } from '@heroicons/vue/24/outline';
 
-const props = defineProps({ 
-  reporte: Object,
-  instrumentadorDni: String,
-});
-
-// Creamos una referencia al div principal del template.
+const props = defineProps({ reporte: Object });
 const pdfTemplateRef = ref(null);
-
-// --- CORRECCIÓN ---
-// Esta línea expone la referencia 'pdfTemplateRef' para que el componente padre pueda acceder a ella.
 defineExpose({ pdfTemplateRef });
 
 const formatDate = (dateString) => {
@@ -104,29 +121,49 @@ const formatDate = (dateString) => {
   const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
   return adjustedDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
+
+const formatDateTime = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleString('es-ES', { 
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+  }) + ' hs';
+};
+
 const formatBoolean = (value) => (value === null || value === undefined) ? 'N/A' : (value ? '✅ Sí' : '❌ No');
 const humanize = (text) => {
   if (!text) return 'N/A';
-  return text.replace('_', ' ').replace(/\b\w/g, char => char.toUpperCase());
+  return text.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
 };
 
 const InfoItem = defineComponent({
   props: ['label', 'value', 'icon', 'isBold'],
   setup(props) {
-    const icons = { UserIcon, ClipboardDocumentCheckIcon, CalendarIcon, MapPinIcon, UserCircleIcon, IdentificationIcon };
-    const iconComponent = props.icon ? h(icons[props.icon], { class: 'h-4 w-4 mr-2 text-slate-500 flex-shrink-0' }) : null;
-    return () => h('div', { class: 'flex py-0.5' }, [
-      iconComponent,
-      h('span', { class: 'font-semibold text-slate-800 mr-2 whitespace-nowrap' }, props.label + ':'),
-      h('span', { class: ['text-slate-600', { 'font-bold': props.isBold }] }, props.value || 'N/A')
+    const icons = { UserIcon, ClipboardDocumentCheckIcon, CalendarIcon, MapPinIcon, UserCircleIcon, IdentificationIcon, DocumentTextIcon, ClockIcon };
+    return () => h('div', { class: 'grid grid-cols-[auto_1fr] gap-x-2 items-start' }, [
+      h('div', { class: 'flex items-center col-start-1 flex-shrink-0' }, [
+        props.icon ? h(icons[props.icon], { class: 'h-5 w-5 mr-2 text-[#1E3A8A]' }) : null,
+        h('span', { class: 'font-semibold text-slate-800 whitespace-nowrap' }, props.label + ':')
+      ]),
+      h('span', { class: ['col-start-2 text-slate-800 break-words', { 'font-bold': props.isBold, 'font-medium': !props.isBold }] }, props.value || 'N/A')
     ]);
   }
 });
 
-const InfoBlock = ({ label, value }) => h('div', {}, [
-  h('strong', { class: 'block font-bold text-slate-700 mb-1' }, label),
-  h('p', { class: 'p-2 bg-slate-100 border border-slate-200 rounded text-slate-600 whitespace-pre-wrap text-xs min-h-[40px]' }, value || 'Sin comentarios.')
-]);
+const InfoBlock = defineComponent({
+  props: ['label', 'value', 'isHighlighted'],
+  setup(props) {
+    const defaultValue = props.label === 'Comentarios / Observaciones' ? 'Sin comentarios.' : 'N/A';
+    return () => h('div', {}, [
+      h('strong', { class: 'block font-bold text-slate-800 mb-1' }, props.label),
+      h('p', {
+        class: [
+          'p-3 bg-slate-100 border border-slate-200 rounded whitespace-pre-wrap text-sm min-h-[50px]',
+          props.isHighlighted ? 'font-bold text-slate-900' : 'text-slate-700'
+        ]
+      }, props.value || defaultValue)
+    ]);
+  }
+});
 
 const RatingStars = defineComponent({
   props: ['label', 'rating'],
@@ -135,8 +172,8 @@ const RatingStars = defineComponent({
     const stars = Array.from({ length: 5 }, (_, i) => h('span', { class: i < props.rating ? ratingColors[props.rating - 1] : 'text-slate-300' }, '★'));
     return () => h('div', { class: 'flex items-center' }, [
       h('span', { class: 'font-semibold text-slate-800 mr-2 w-28' }, props.label + ':'),
-      h('div', { class: 'flex text-base' }, stars),
-      h('span', { class: 'ml-2 text-xs text-slate-500' }, `(${props.rating || 'N'}/${'A'})`)
+      h('div', { class: 'flex text-lg' }, stars),
+      h('span', { class: 'ml-2 text-sm text-slate-500' }, `(${props.rating ? props.rating + '/5' : 'N/A'})`)
     ]);
   }
 });
