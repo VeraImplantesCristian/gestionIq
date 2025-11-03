@@ -1,4 +1,4 @@
-<!-- src/components/FormStepSignature.vue -->
+<!-- src/components/FormStepSignature.vue (CORREGIDO Y MEJORADO) -->
 <template>
   <div class="space-y-8">
     <div>
@@ -16,18 +16,28 @@
       <div v-if="signaturePreviewUrl" 
            class="relative p-2 border border-slate-300 rounded-xl shadow-inner bg-slate-50 dark:bg-slate-900/50 dark:border-slate-700">
         <img :src="signaturePreviewUrl" alt="Firma guardada" class="h-40 w-full object-contain">
-        <button type="button" @click="openSignatureModal" 
+        <button type="button" @click="$emit('open-signature-modal')" 
                 class="absolute top-2 right-2 p-2 bg-white/70 backdrop-blur-sm rounded-full text-slate-600 hover:text-blue-600 shadow-sm dark:bg-slate-700/70 dark:text-slate-300 dark:hover:text-blue-400">
           <PencilIcon class="h-5 w-5" />
         </button>
       </div>
       
       <!-- Placeholder para la Firma -->
+      <!-- CAMBIO 1: Se añaden clases dinámicas para el estado de error, haciendo más obvio que el campo es requerido. -->
       <div v-else 
-           @click="openSignatureModal"
-           class="h-48 w-full border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-center p-4 cursor-pointer hover:border-blue-500 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800/50">
+           @click="$emit('open-signature-modal')"
+           :class="[
+            'h-48 w-full border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-center p-4 cursor-pointer transition-colors',
+            errors.signature 
+              ? 'border-red-500 bg-red-50 dark:bg-red-900/20' 
+              : 'border-slate-300 hover:border-blue-500 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800/50'
+           ]">
         <div class="w-16 h-16 grid place-content-center bg-slate-100 dark:bg-slate-700/50 rounded-full mb-2">
-          <PencilSquareIcon class="w-8 h-8 text-slate-400 dark:text-slate-500" />
+          <PencilSquareIcon 
+            :class="[
+              'w-8 h-8', 
+              errors.signature ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'
+            ]" />
         </div>
         <p class="font-semibold text-slate-700 dark:text-slate-300">Abrir panel de firma</p>
         <p class="text-sm text-slate-500 dark:text-slate-400">Haga clic aquí para firmar</p>
@@ -59,42 +69,65 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue';
-import { PencilIcon, PencilSquareIcon } from '@heroicons/vue/24/solid';
+import { computed, watch } from 'vue';
+import { PencilIcon, PencilSquareIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-  formData: { type: Object, required: true },
-  errors: { type: Object, default: () => ({}) },
-  signaturePreviewUrl: String 
+  formData: Object,
+  errors: Object,
+  signaturePreviewUrl: String,
+  // CAMBIO 2: Se añade una nueva prop para recibir la firma real (Base64 o Blob).
+  signatureData: [String, Blob, null],
 });
 
-const emit = defineEmits(['update:form-data', 'open-signature-modal', 'set-footer-action']);
+const emit = defineEmits(['update:formData', 'open-signature-modal']);
 
-const updateFormData = (payload) => {
-  emit('update:form-data', payload);
+const updateFormData = (newData) => {
+  emit('update:formData', { ...props.formData, ...newData });
 };
 
-const openSignatureModal = () => {
-  emit('open-signature-modal');
-};
+// CAMBIO 3: Observador que sincroniza la firma con el modelo de datos del formulario.
+// Esta es la corrección clave. Cuando el padre pase la firma, este 'watch' la añadirá
+// al objeto 'formData', permitiendo que la validación funcione.
+watch(() => props.signatureData, (newSignature) => {
+  if (newSignature) {
+    updateFormData({ firma_digital: newSignature });
+  }
+});
 
 const termsUrl = "https://ugznvonyvtjfqskhubbi.supabase.co/storage/v1/object/public/documentos/Terminos%20y%20condiciones.pdf";
-
-// --- LÓGICA DEL BOTÓN STICKY ---
-// Al montarse, le decimos al padre (FichaForm) que el botón principal de este paso
-// debe ser el de "Abrir Panel de Firma".
-onMounted(() => {
-  emit('set-footer-action', {
-    text: 'Abrir Panel de Firma',
-    action: openSignatureModal,
-    class: 'bg-blue-600 text-white font-semibold hover:bg-blue-700',
-    // Ocultamos el botón del footer si ya hay una firma.
-    hidden: !!props.signaturePreviewUrl 
-  });
-});
-
-// Al desmontarse (cambiar de paso), limpiamos la acción del footer.
-onUnmounted(() => {
-  emit('set-footer-action', null);
-});
 </script>
+
+<style scoped>
+.signature-path {
+  stroke-dasharray: 50;
+  stroke-dashoffset: 50;
+  animation: draw 2s ease-in-out forwards;
+}
+.hand-path {
+  opacity: 0;
+  animation: slide-in 2s ease-in-out forwards;
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes slide-in {
+  0% {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  40% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+}
+</style>
