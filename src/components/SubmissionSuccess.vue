@@ -98,7 +98,7 @@ const props = defineProps({
 defineEmits(['view-summary']);
 
 const whatsappUrl = computed(() => {
-  const numero = '543774404291';
+  const numero = '543794043788';
   const mensaje = `Hola, comparto evidencia del material del paciente ${props.pacienteNombre}.`;
   return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
 });
