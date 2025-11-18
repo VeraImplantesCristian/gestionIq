@@ -21,6 +21,20 @@
           class="form-input mt-2"
           placeholder="Ej: 2 tornillos de 4.5mm, 1 placa de titanio..."
         ></textarea>
+        
+        <!-- ========= INICIO DE LA SOLUCIÓN: LEYENDA GUÍA ========= -->
+        <!--
+          Este párrafo sirve como una guía clara para el usuario.
+          - 'text-xs': Tamaño de letra pequeño.
+          - 'text-slate-500': Color de texto sutil para no ser intrusivo.
+          - 'dark:text-slate-400': Adapta el color para el modo oscuro.
+          - 'mt-1.5': Añade un pequeño margen superior para separarlo del campo.
+        -->
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+          Por favor, detallar cada ítem en una línea nueva. Ej: "1 x Placa de tibia proximal", "6 x Tornillos corticales 5mm".
+        </p>
+        <!-- ========= FIN DE LA SOLUCIÓN ========= -->
+
         <p v-if="errors.consumo_realizado" class="text-sm text-red-500 mt-1">{{ errors.consumo_realizado }}</p>
       </div>
       <div>

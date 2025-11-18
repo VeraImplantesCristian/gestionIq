@@ -1,4 +1,4 @@
-<!-- src/components/FilterBar.vue (COMPLETO Y CON ESTADO DE CARGA) -->
+<!-- src/components/FilterBar.vue -->
 <template>
   <div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow mb-6">
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -41,7 +41,6 @@
         <button @click="handleClear" class="btn-secondary">Limpiar</button>
         <button @click="handleApply" class="btn-primary">Aplicar Filtros</button>
         
-        <!-- CAMBIO: Los botones ahora están deshabilitados y muestran un texto diferente durante la exportación -->
         <button @click="$emit('export-pdf')" class="btn-export-simple" :disabled="isExporting">
           {{ isExporting ? 'Exportando...' : 'Exportar Lista' }}
         </button>
@@ -54,10 +53,10 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+// Se importa 'onMounted' del core de Vue.
+import { reactive, onMounted } from 'vue';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, format } from 'date-fns';
 
-// CAMBIO: Se añade la prop 'isExporting' para recibir el estado desde el padre.
 defineProps({
   isExporting: {
     type: Boolean,
@@ -70,14 +69,26 @@ const emit = defineEmits(['update-filters', 'export-pdf', 'export-traceability']
 const filters = reactive({
   paciente: '',
   medico: '',
+  // El estado por defecto se mantiene en 'todos', lo cual es correcto.
   statusFilter: 'todos',
   startDate: '',
   endDate: '',
 });
 
 const handleApply = () => {
+  // Emite el estado actual de los filtros al componente padre.
   emit('update-filters', { ...filters });
 };
+
+// --- INICIO DE LA SOLUCIÓN ---
+// Se utiliza el hook onMounted para ejecutar una acción cuando el componente está listo.
+onMounted(() => {
+  // Se llama a handleApply() para emitir el estado inicial de los filtros.
+  // Esto asegura que la vista padre (AdminView) reciba la configuración
+  // por defecto ('todos') y cargue todos los reportes desde el principio.
+  handleApply();
+});
+// --- FIN DE LA SOLUCIÓN ---
 
 const handleClear = () => {
   filters.paciente = '';

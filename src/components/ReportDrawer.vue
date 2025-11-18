@@ -1,4 +1,4 @@
-<!-- src/components/ReportDrawer.vue (COMPLETO Y CORREGIDO) -->
+<!-- src/components/ReportDrawer.vue -->
 <template>
   <div>
     <Transition name="fade">
@@ -21,11 +21,16 @@
           <div v-if="!isEditing" class="px-6 pt-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
             <div class="flex space-x-4">
               <button @click="activeTab = 'details'" :class="['py-2 px-3 text-sm font-semibold rounded-t-md', activeTab === 'details' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200']">
-                Detalles del Reporte
+                Detalles
               </button>
               <button @click="activeTab = 'history'" :class="['py-2 px-3 text-sm font-semibold rounded-t-md', activeTab === 'history' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200']">
-                Historial de Eventos
+                Eventos
               </button>
+              <!-- ========= INICIO DEL CAMBIO: NUEVA PESTAÑA DE HISTORIAL PDF ========= -->
+              <button @click="activeTab = 'pdfHistory'" :class="['py-2 px-3 text-sm font-semibold rounded-t-md', activeTab === 'pdfHistory' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200']">
+                Historial PDF
+              </button>
+              <!-- ========= FIN DEL CAMBIO ========= -->
             </div>
           </div>
 
@@ -37,22 +42,16 @@
                 <!-- Datos de la Cirugía -->
                 <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-slate-400">Datos de la Cirugía</h3>
                 <div class="p-4 bg-slate-50 rounded-lg border dark:bg-slate-700/50 dark:border-slate-700">
-                  
                   <EditableField v-if="isEditing" label="Paciente" v-model="formData.paciente" :is-editing="true" is-bold />
                   <EditableField v-else label="Paciente" :model-value="formData.paciente" :is-editing="false" is-bold />
-
                   <EditableField v-if="isEditing" label="Médico" v-model="formData.medico" :is-editing="true" />
                   <EditableField v-else label="Médico" :model-value="formData.medico" :is-editing="false" />
-
                   <EditableField v-if="isEditing" label="Tipo de Cirugía" v-model="formData.tipo_cirugia" :is-editing="true" />
                   <EditableField v-else label="Tipo de Cirugía" :model-value="formData.tipo_cirugia" :is-editing="false" />
-                  
                   <EditableField v-if="isEditing" label="Fecha" v-model="formData.fecha_cirugia" :is-editing="true" type="date" />
                   <EditableField v-else label="Fecha" :model-value="formData.fecha_cirugia" :is-editing="false" type="date" />
-
                   <EditableField v-if="isEditing" label="Lugar" v-model="formData.lugar_cirugia" :is-editing="true" />
                   <EditableField v-else label="Lugar" :model-value="formData.lugar_cirugia" :is-editing="false" />
-
                   <EditableField v-if="isEditing" label="ID Cirugía" v-model="formData.id_cirugia" :is-editing="true" />
                   <EditableField v-else label="ID Cirugía" :model-value="formData.id_cirugia" :is-editing="false" />
                 </div>
@@ -62,10 +61,8 @@
                 <div class="p-4 bg-slate-50 rounded-lg border dark:bg-slate-700/50 dark:border-slate-700">
                   <EditableField label="Completado por" :model-value="formData.instrumentador_completado" :is-editing="false" is-bold />
                   <EditableField label="DNI" :model-value="formData.instrumentador_dni" :is-editing="false" />
-                  
                   <EditableField v-if="isEditing" label="Set Completo" v-model="formData.set_completo" :is-editing="true" type="boolean" />
                   <EditableField v-else label="Set Completo" :model-value="formData.set_completo" :is-editing="false" type="boolean" />
-
                   <template v-if="formData.set_completo === false || isEditing">
                     <EditableField v-if="isEditing" label="Informó Faltante" v-model="formData.informe_faltante" :is-editing="true" type="boolean" />
                     <EditableField v-else label="Informó Faltante" :model-value="formData.informe_faltante" :is-editing="false" type="boolean" />
@@ -97,13 +94,10 @@
                   <div class="p-4 bg-slate-50 rounded-lg border dark:bg-slate-700/50 dark:border-slate-700 space-y-2">
                     <EditableField v-if="isEditing" label="Representante" v-model="formData.representante_ventas" :is-editing="true" simple />
                     <EditableField v-else label="Representante" :model-value="formData.representante_ventas" :is-editing="false" simple />
-
                     <EditableField v-if="isEditing" label="Duración Cirugía" v-model="formData.duracion_cirugia" :is-editing="true" simple />
                     <EditableField v-else label="Duración Cirugía" :model-value="formData.duracion_cirugia" :is-editing="false" simple />
-
                     <EditableField v-if="isEditing" label="Logística" v-model="formData.tipo_logistica" :is-editing="true" simple />
                     <EditableField v-else label="Logística" :model-value="formData.tipo_logistica" :is-editing="false" simple />
-
                     <EditableField v-if="isEditing" label="Transporte" v-model="formData.transporte_utilizado" :is-editing="true" simple />
                     <EditableField v-else label="Transporte" :model-value="formData.transporte_utilizado" :is-editing="false" simple />
                   </div>
@@ -120,7 +114,7 @@
               </section>
             </div>
 
-            <!-- Pestaña de Historial -->
+            <!-- Pestaña de Historial de Eventos -->
             <div v-show="activeTab === 'history' && !isEditing">
               <ul class="space-y-4">
                 <li v-for="(event, index) in timelineEvents" :key="index" class="flex items-start space-x-4">
@@ -141,6 +135,23 @@
                 </li>
               </ul>
             </div>
+            
+            <!-- ========= INICIO DEL CAMBIO: CONTENIDO DE LA NUEVA PESTAÑA DE HISTORIAL PDF ========= -->
+            <div v-show="activeTab === 'pdfHistory' && !isEditing">
+              <div v-if="pdfHistoryLoading" class="text-center text-slate-500 py-8">Cargando historial...</div>
+              <div v-else-if="pdfHistoryError" class="text-center text-red-500 py-8">{{ pdfHistoryError }}</div>
+              <ul v-else-if="pdfHistory.length > 0" class="space-y-3">
+                <li v-for="log in pdfHistory" :key="log.id" class="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md border dark:border-slate-700 flex justify-between items-center">
+                  <div>
+                    <p class="font-semibold text-slate-800 dark:text-slate-100">Versión {{ log.version }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Generado el {{ formatDateTime(log.generated_at) }}</p>
+                  </div>
+                  <span class="text-xs font-mono px-2 py-1 bg-slate-200 dark:bg-slate-600 rounded">Usuario: {{ log.generated_by ? log.generated_by.slice(0, 8) : 'N/A' }}...</span>
+                </li>
+              </ul>
+              <div v-else class="text-center text-slate-500 py-8">Aún no se ha generado ningún PDF.</div>
+            </div>
+            <!-- ========= FIN DEL CAMBIO ========= -->
           </div>
 
           <!-- Pie del Modal -->
@@ -168,9 +179,16 @@
       </div>
     </Transition>
 
+    <!-- ========= INICIO DEL CAMBIO: PASAMOS LA VERSIÓN AL COMPONENTE PDF ========= -->
+    <!-- Se añade la prop 'pdf-version' para pasar el número de versión al template del PDF -->
     <div v-if="formData" :class="isGeneratingPdf ? 'fixed top-0 -left-[9999px]' : 'hidden'">
-      <ReportPDF :reporte="formData" :instrumentador-dni="formData.instrumentador_dni" ref="pdfComponentRef" />
+      <ReportPDF 
+        :reporte="formData" 
+        :instrumentador-dni="formData.instrumentador_dni" 
+        :pdf-version="currentPdfVersion"
+        ref="pdfComponentRef" />
     </div>
+    <!-- ========= FIN DEL CAMBIO ========= -->
   </div>
 </template>
 
@@ -195,6 +213,46 @@ const isEditing = ref(false);
 const isSaving = ref(false);
 const formData = ref(null);
 
+// ========= INICIO DEL CAMBIO: LÓGICA PARA HISTORIAL DE PDF =========
+const pdfHistory = ref([]);
+const pdfHistoryLoading = ref(false);
+const pdfHistoryError = ref(null);
+const currentPdfVersion = ref(null); // Almacena la versión del PDF actual para pasarla como prop.
+
+// Función para cargar el historial de PDFs desde la nueva tabla 'pdf_generation_log'.
+const fetchPdfHistory = async () => {
+  if (!props.reporte?.id) return;
+  pdfHistoryLoading.value = true;
+  pdfHistoryError.value = null;
+  try {
+    const { data, error } = await supabase
+      .from('pdf_generation_log')
+      .select('id, version, generated_at, generated_by')
+      .eq('reporte_id', props.reporte.id)
+      .order('version', { ascending: false }); // Muestra la versión más reciente primero.
+    
+    if (error) throw error;
+    pdfHistory.value = data;
+  } catch (err) {
+    pdfHistoryError.value = 'No se pudo cargar el historial de PDF.';
+    toast.error(pdfHistoryError.value);
+  } finally {
+    pdfHistoryLoading.value = false;
+  }
+};
+// ========= FIN DEL CAMBIO =========
+
+
+watch(() => props.show, (isVisible) => {
+  if (isVisible) {
+    // Cuando el drawer se abre, reseteamos el estado y cargamos el historial de PDF.
+    activeTab.value = 'details';
+    pdfHistory.value = [];
+    currentPdfVersion.value = null;
+    fetchPdfHistory(); 
+  }
+});
+
 watch(() => props.reporte, (newReporte) => {
   if (newReporte) {
     formData.value = JSON.parse(JSON.stringify(newReporte));
@@ -202,8 +260,6 @@ watch(() => props.reporte, (newReporte) => {
     formData.value = null;
   }
 }, { deep: true, immediate: true });
-
-// La función 'formatDisplayValue' ha sido eliminada. La lógica ahora reside en EditableField.vue
 
 const close = () => {
   isEditing.value = false;
@@ -252,14 +308,25 @@ const pdfComponentRef = ref(null);
 const generatePDF = async () => {
   if (!props.reporte) return;
   isGeneratingPdf.value = true;
-  
-  await new Promise(resolve => setTimeout(resolve, 50));
 
   try {
+    // ========= INICIO DEL CAMBIO: LLAMADA A LA FUNCIÓN RPC =========
+    // Paso 1: Llamar a la función RPC para registrar la generación y obtener la nueva versión.
+    const { data: version, error: rpcError } = await supabase.rpc('log_pdf_generation', {
+      p_reporte_id: props.reporte.id
+    });
+
+    if (rpcError) throw rpcError;
+
+    // Paso 2: Guardar la versión para pasarla al componente PDF y actualizar el historial.
+    currentPdfVersion.value = version;
+    toast.success(`Generando PDF Versión ${version}...`);
+    // ========= FIN DEL CAMBIO =========
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     const pdfElement = pdfComponentRef.value?.pdfTemplateRef;
-    if (!pdfElement) {
-      throw new Error("Elemento de PDF no encontrado.");
-    }
+    if (!pdfElement) throw new Error("Elemento de PDF no encontrado.");
     
     const canvas = await html2canvas(pdfElement, { scale: 2, useCORS: true });
     const imgData = canvas.toDataURL('image/jpeg', 1.0);
@@ -268,25 +335,23 @@ const generatePDF = async () => {
     const pdfHeight = pdf.internal.pageSize.getHeight();
     const ratio = canvas.width / canvas.height;
     let imgHeight = pdfWidth / ratio;
-    let position = 0;
     
-    pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight);
     
-    let heightLeft = imgHeight - pdfHeight;
-    while (heightLeft > 0) {
-      position -= pdfHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
-      heightLeft -= pdfHeight;
-    }
-    pdf.save(`Reporte-${props.reporte.id_cirugia || props.reporte.id}.pdf`);
+    // Nombramos el archivo PDF incluyendo el número de versión.
+    pdf.save(`Reporte-${props.reporte.id_cirugia || props.reporte.id}-V${version}.pdf`);
+    
+    // Después de generar, refrescamos la lista del historial para que se vea el nuevo registro.
+    fetchPdfHistory();
+
   } catch (error) {
     console.error("Error al generar el PDF:", error);
-    toast.error("Hubo un error al generar el PDF.");
+    toast.error(`Hubo un error al generar el PDF: ${error.message}`);
   } finally {
     isGeneratingPdf.value = false;
   }
 };
+
 
 const downloadSignature = () => {
   if (!formData.value?.url_firma) return;

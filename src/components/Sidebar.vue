@@ -29,10 +29,10 @@
     <nav class="flex-grow p-3 space-y-1">
       <button
         v-for="item in visibleItems"
-        :key="item.to"
-        @click="go(item.to)"
+        :key="item.label" 
+        @click="item.action ? item.action() : go(item.to)"
         class="nav-link group"
-        :aria-current="isActive(item.to) ? 'page' : undefined"
+        :aria-current="!item.action && isActive(item.to) ? 'page' : undefined"
       >
         <component :is="item.icon" class="w-5 h-5 shrink-0"/>
         <span class="truncate">{{ item.label }}</span>
@@ -64,7 +64,8 @@ import { supabase } from '../services/supabase';
 import { useToast } from 'vue-toastification';
 
 const props = defineProps({ isOpen: Boolean, userRole: { type: String, default: 'admin' } });
-const emit = defineEmits(['close-sidebar']);
+// El emit 'open-share-reclamo-modal' ya no es necesario aquí, pero lo dejamos por si se reutiliza.
+const emit = defineEmits(['close-sidebar', 'open-share-reclamo-modal']);
 
 const router = useRouter();
 const route = useRoute();
@@ -77,59 +78,54 @@ const onKey = (e) => {
 onMounted(() => document.addEventListener('keydown', onKey));
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 
+const HeartIcon = {
+  render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+    h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 21l-7.682-7.318a4.5 4.5 0 010-6.364z' })
+  ])
+};
+
 const items = computed(() => ([
   {
     label: 'Panel de Cirugías',
     to: '/admin',
-    icon: {
-      render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
-        h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M4 6h16M4 12h16m-7 6h7' })
-      ])
-    },
+    icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M4 6h16M4 12h16m-7 6h7' }) ]) },
     roles: ['admin','coord','user']
   },
   {
     label: 'Ranking IQ',
     to: '/ranking',
-    icon: {
-      render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
-        h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z' }),
-        h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z' })
-      ])
-    },
+    icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z' }), h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z' }) ]) },
     roles: ['admin','coord']
   },
   {
     label: 'Estadísticas',
     to: '/estadisticas',
     badge: 'Nuevo',
-    icon: {
-      render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
-        h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M16 8v8m-4-5v5m-4-2v2M5 20h14a2 2 0 002-2V6a2 2 0 002-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' })
-      ])
-    },
+    icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M16 8v8m-4-5v5m-4-2v2M5 20h14a2 2 0 002-2V6a2 2 0 002-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' }) ]) },
     roles: ['admin','coord']
   },
   {
     label: 'Instrumentadores',
     to: '/instrumentadores',
-    icon: {
-      render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
-        h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.653-.124-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.653.124-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' })
-      ])
-    },
+    icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.653-.124-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.653.124-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' }) ]) },
     roles: ['admin','coord','user']
   },
   {
     label: 'Incidencias',
     to: '/incidencias',
-    icon: {
-      render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
-        h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' })
-      ])
-    },
+    icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' }) ]) },
     roles: ['admin','coord']
+  },
+  // ========= INICIO DE LA SOLUCIÓN: CAMBIAR 'action' POR 'to' =========
+  // Antes, este item tenía una propiedad 'action' que emitía un evento.
+  // Ahora, tiene una propiedad 'to' que lo convierte en un enlace de navegación.
+  {
+    label: 'Área Médicos',
+    to: '/quejas', // Apunta a la nueva vista de gestión de reclamos.
+    icon: HeartIcon, 
+    roles: ['admin', 'coord'] 
   }
+  // ========= FIN DE LA SOLUCIÓN =========
 ]));
 
 const visibleItems = computed(() => items.value.filter(i => i.roles.includes(props.userRole)));
@@ -150,7 +146,6 @@ const handleLogout = async () => {
 };
 
 const appVersion = import.meta.env.VITE_APP_VERSION ?? '1.0.0';
-const q = ref('');
 
 const LogoutIcon = {
   render: () => h('svg', { class: 'w-5 h-5', fill:'none', stroke:'currentColor', viewBox:'0 0 24 24' }, [
