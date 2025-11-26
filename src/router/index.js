@@ -17,6 +17,11 @@ import RankingView from '../views/RankingView.vue';
 import ReclamoView from '../views/ReclamoView.vue';
 import QuejasView from '../views/QuejasView.vue';
 
+// ========= INICIO DE LA SOLUCIÓN: IMPORTAR LA NUEVA VISTA =========
+import PedidosEspecialesView from '../views/PedidosEspecialesView.vue';
+// ========= FIN DE LA SOLUCIÓN =========
+
+
 const routes = [
   // Rutas públicas (no usan AdminLayout)
   {
@@ -30,58 +35,63 @@ const routes = [
     component: FichaView,
     props: true
   },
+  // La ruta del short link '/f/' debería estar aquí si la tienes
+  // { path: '/f/:short_code', ... }
   {
     path: '/reclamo',
     name: 'Reclamo',
     component: ReclamoView
   },
 
-  // ========= INICIO DE LA SOLUCIÓN: RUTAS PROTEGIDAS ANIDADAS =========
-  // Creamos una ruta "padre" que usa AdminLayout como su componente.
-  // Todas las rutas que pongamos dentro de 'children' se renderizarán
-  // dentro del <router-view> de AdminLayout.
+  // Rutas protegidas que usan AdminLayout
   {
     path: '/',
     component: AdminLayout,
-    meta: { requiresAuth: true }, // Protegemos todo el grupo
+    meta: { requiresAuth: true },
     children: [
       {
-        path: '', // Redirige de la raíz ('/') a '/admin'
+        path: '',
         redirect: '/admin'
       },
       {
-        path: 'admin', // Se accede con /admin
+        path: 'admin',
         name: 'Admin',
         component: AdminView,
       },
       {
-        path: 'estadisticas', // Se accede con /estadisticas
+        path: 'estadisticas',
         name: 'Estadisticas',
         component: StatsView,
       },
       {
-        path: 'instrumentadores', // Se accede con /instrumentadores
+        path: 'instrumentadores',
         name: 'Instrumentadores',
         component: InstrumentadoresView,
       },
       {
-        path: 'incidencias', // Se accede con /incidencias
+        path: 'incidencias',
         name: 'Incidencias',
         component: IncidenciasView,
       },
       {
-        path: 'ranking', // Se accede con /ranking
+        path: 'ranking',
         name: 'Ranking',
         component: RankingView,
       },
       {
-        path: 'quejas', // Se accede con /quejas
+        path: 'quejas',
         name: 'Quejas',
         component: QuejasView,
+      },
+      // ========= INICIO DE LA SOLUCIÓN: AÑADIR LA NUEVA RUTA ANIDADA =========
+      {
+        path: 'pedidos-especiales', // Se accede con /pedidos-especiales
+        name: 'PedidosEspeciales',
+        component: PedidosEspecialesView,
       }
+      // ========= FIN DE LA SOLUCIÓN =========
     ]
   }
-  // ========= FIN DE LA SOLUCIÓN =========
 ];
 
 const router = createRouter({
@@ -89,7 +99,7 @@ const router = createRouter({
   routes,
 });
 
-// El guardia de navegación sigue funcionando perfectamente con esta nueva estructura.
+// El guardia de navegación protege todas las rutas anidadas automáticamente.
 router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
   if (requiresAuth) {

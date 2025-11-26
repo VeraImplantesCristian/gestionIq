@@ -41,54 +41,35 @@
         <button @click="handleClear" class="btn-secondary">Limpiar</button>
         <button @click="handleApply" class="btn-primary">Aplicar Filtros</button>
         
-        <button @click="$emit('export-pdf')" class="btn-export-simple" :disabled="isExporting">
-          {{ isExporting ? 'Exportando...' : 'Exportar Lista' }}
-        </button>
-        <button @click="$emit('export-traceability')" class="btn-traceability" :disabled="isExporting">
-          {{ isExporting ? 'Exportando...' : 'Exportar Trazabilidad' }}
-        </button>
+        <!-- ========= INICIO DE LA SOLUCIÓN: BOTONES DE EXPORTACIÓN ACTIVADOS ========= -->
+        <button @click="$emit('export-lista')" class="btn-export-simple">Exportar Lista</button>
+        <button @click="$emit('export-trazabilidad')" class="btn-traceability">Exportar Trazabilidad</button>
+        <!-- ========= FIN DE LA SOLUCIÓN ========= -->
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-// Se importa 'onMounted' del core de Vue.
 import { reactive, onMounted } from 'vue';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, format } from 'date-fns';
 
-defineProps({
-  isExporting: {
-    type: Boolean,
-    default: false
-  }
-});
-
-const emit = defineEmits(['update-filters', 'export-pdf', 'export-traceability']);
+// Se eliminó la prop 'isExporting'
+const emit = defineEmits(['update-filters', 'export-lista', 'export-trazabilidad']);
 
 const filters = reactive({
   paciente: '',
   medico: '',
-  // El estado por defecto se mantiene en 'todos', lo cual es correcto.
   statusFilter: 'todos',
   startDate: '',
   endDate: '',
 });
 
 const handleApply = () => {
-  // Emite el estado actual de los filtros al componente padre.
   emit('update-filters', { ...filters });
 };
 
-// --- INICIO DE LA SOLUCIÓN ---
-// Se utiliza el hook onMounted para ejecutar una acción cuando el componente está listo.
-onMounted(() => {
-  // Se llama a handleApply() para emitir el estado inicial de los filtros.
-  // Esto asegura que la vista padre (AdminView) reciba la configuración
-  // por defecto ('todos') y cargue todos los reportes desde el principio.
-  handleApply();
-});
-// --- FIN DE LA SOLUCIÓN ---
+onMounted(handleApply);
 
 const handleClear = () => {
   filters.paciente = '';
@@ -117,19 +98,9 @@ const setThisWeek = () => {
 </script>
 
 <style scoped>
-.input-form {
-  @apply block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white;
-}
-.btn-primary {
-  @apply bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed;
-}
-.btn-secondary {
-  @apply bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed;
-}
-.btn-export-simple {
-  @apply bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-green-700 disabled:opacity-50 disabled:cursor-wait;
-}
-.btn-traceability {
-  @apply bg-teal-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-teal-700 disabled:opacity-50 disabled:cursor-wait;
-}
+.input-form { @apply block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white; }
+.btn-primary { @apply bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed; }
+.btn-secondary { @apply bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed; }
+.btn-export-simple { @apply bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-green-700 disabled:opacity-50 disabled:cursor-wait; }
+.btn-traceability { @apply bg-teal-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-teal-700 disabled:opacity-50 disabled:cursor-wait; }
 </style>

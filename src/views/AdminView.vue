@@ -1,11 +1,14 @@
 <!-- src/views/AdminView.vue -->
 <template>
-  <!-- 
-    La estructura del template no requiere cambios.
-    Renderiza la UI basada en los datos que obtiene el script.
-  -->
   <div class="p-4 sm:p-6 lg:p-8">
-    <FilterBar @update-filters="applyFilters" />
+    <!-- ========= INICIO DE LA SOLUCIÓN: CONECTAR EVENTOS DE EXPORTACIÓN ========= -->
+    <FilterBar 
+      @update-filters="applyFilters" 
+      @export-lista="exportarListaPDF"
+      @export-trazabilidad="exportarTrazabilidadPDF"
+      :is-exporting="isExporting"
+    />
+    <!-- ========= FIN DE LA SOLUCIÓN ========= -->
 
     <div v-if="loading" class="space-y-4">
       <SkeletonLoader v-for="n in 5" :key="`skel-${n}`" />
@@ -19,7 +22,9 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
           <thead class="bg-gray-50 dark:bg-slate-700">
             <tr>
-              <th scope="col" class="p-4"><input type="checkbox" @change="toggleSelectAll" :checked="isAllSelected" class="h-4 w-4 text-blue-600 rounded border-gray-300 dark:bg-slate-600 dark:border-slate-500"></th>
+              <!-- ========= INICIO DE LA SOLUCIÓN: ELIMINAR CABECERA DE CHECKBOX ========= -->
+              <!-- Se elimina el th del checkbox -->
+              <!-- ========= FIN DE LA SOLUCIÓN ========= -->
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-slate-400">Paciente</th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-slate-400">Médico</th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-slate-400">Instrumentador</th>
@@ -28,47 +33,36 @@
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200 dark:bg-slate-800 dark:divide-slate-700">
-            <tr v-if="reportes.length === 0"><td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-slate-400">No se encontraron reportes con los filtros actuales.</td></tr>
+            <tr v-if="reportes.length === 0"><td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-slate-400">No se encontraron reportes con los filtros actuales.</td></tr>
             <tr v-for="reporte in reportes" :key="reporte.id">
-              <td class="p-4"><input type="checkbox" v-model="selectedReportIds" :value="reporte.id" class="h-4 w-4 text-blue-600 rounded border-gray-300 dark:bg-slate-600 dark:border-slate-500"></td>
+              <!-- ========= INICIO DE LA SOLUCIÓN: ELIMINAR CELDA DE CHECKBOX ========= -->
+              <!-- Se elimina el td del checkbox -->
+              <!-- ========= FIN DE LA SOLUCIÓN ========= -->
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-slate-100">{{ reporte.paciente }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">{{ reporte.medico }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">{{ reporte.instrumentador_completado || 'N/A' }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm">
-                <span :class="['px-2 inline-flex text-xs leading-5 font-semibold rounded-full', {
-                  'bg-green-100 text-green-800': reporte.estado === 'Enviado',
-                  'bg-yellow-100 text-yellow-800': reporte.estado === 'Pendiente',
-                  'bg-gray-100 text-gray-800 dark:bg-slate-600 dark:text-slate-200': reporte.estado === 'Expirado',
-                }]">{{ reporte.estado || 'Pendiente' }}</span>
+                <span :class="['px-2 inline-flex text-xs leading-5 font-semibold rounded-full', getEstadoClass(reporte.estado)]">{{ reporte.estado || 'Pendiente' }}</span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
-                <button v-if="!reporte.token" @click="generarLink(reporte)" :disabled="generatingLinkId === reporte.id" class="text-indigo-600 hover:text-indigo-900 disabled:text-gray-400 disabled:cursor-wait dark:text-indigo-400 dark:hover:text-indigo-300">{{ generatingLinkId === reporte.id ? 'Generando...' : 'Generar Link' }}</button>
-                <button v-else @click="copiarLink(reporte)" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">Copiar Link</button>
+                <button @click="openGenerateLinkModal(reporte)" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">Compartir</button>
                 <a href="#" @click.prevent="openDrawer(reporte)" class="text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200">Ver Detalles</a>
               </td>
             </tr>
           </tbody>
         </table>
-        <PaginationControls v-if="totalReportes > 0" :current-page="currentPage" :total-items="totalReportes" :items-per-page="itemsPerPage" @page-changed="goToPage" />
+        <PaginationControls v-if="totalReportes > itemsPerPage" :current-page="currentPage" :total-items="totalReportes" :items-per-page="itemsPerPage" @page-changed="goToPage" />
       </div>
       <div class="sm:hidden space-y-4">
         <p v-if="reportes.length === 0" class="text-center text-gray-500 py-10">No se encontraron reportes.</p>
-        <ReportCard v-for="reporte in reportes" :key="reporte.id" :reporte="reporte" :is-generating="generatingLinkId === reporte.id" :selected="selectedReportIds.includes(reporte.id)" @generate="generarLink" @copy="copiarLink" @details="openDrawer" @toggle-select="toggleSelection"/>
-        <PaginationControls v-if="totalReportes > 0" :current-page="currentPage" :total-items="totalReportes" :items-per-page="itemsPerPage" @page-changed="goToPage" />
+        <ReportCard v-for="reporte in reportes" :key="reporte.id" :reporte="reporte" @share="openGenerateLinkModal(reporte)" @details="openDrawer"/>
+        <PaginationControls v-if="totalReportes > itemsPerPage" :current-page="currentPage" :total-items="totalReportes" :items-per-page="itemsPerPage" @page-changed="goToPage" />
       </div>
     </div>
     
-    <Transition name="slide-up">
-      <div v-if="selectedReportIds.length > 0" class="fixed bottom-0 left-0 right-0 bg-gray-800 text-white shadow-lg z-20">
-        <div class="max-w-7xl mx-auto p-4 flex justify-between items-center">
-          <span class="font-semibold">{{ selectedReportIds.length }} seleccionado(s)</span>
-          <div class="space-x-4">
-            <button @click="expireSelectedLinks" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md text-sm font-medium">Expirar Links</button>
-            <button @click="exportToCSV" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded-md text-sm font-medium">Exportar a CSV</button>
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <!-- ========= INICIO DE LA SOLUCIÓN: ELIMINAR BARRA DE ACCIONES MÚLTIPLES ========= -->
+    <!-- El bloque <Transition name="slide-up"> y su contenido han sido eliminados -->
+    <!-- ========= FIN DE LA SOLUCIÓN ========= -->
     
     <NewSurgeryModal :show="isNewSurgeryModalVisible" @close="closeNewSurgeryModal" @surgery-created="handleSurgeryCreated"/>
     <ReportDrawer 
@@ -77,13 +71,25 @@
       @close="closeDrawer"
       @updated="fetchReportes"
     />
+    <GenerateLinkModal 
+      :show="isGenerateLinkModalVisible"
+      :reporte="selectedReporteForLink"
+      @close="closeGenerateLinkModal"
+      @link-generated="handleLinkGenerated"
+      @link-expired="handleLinkExpired"
+    />
   </div>
 </template>
+
 <script setup>
-import { ref, onMounted, onUnmounted, computed, inject, h, markRaw } from 'vue';
+import { ref, onMounted, onUnmounted, inject, h, markRaw } from 'vue';
 import { supabase } from '../services/supabase.js';
-import { v4 as uuidv4 } from 'uuid';
 import { useToast } from 'vue-toastification';
+
+// ========= INICIO DE LA SOLUCIÓN: IMPORTACIÓN CORRECTA DE JSPDF =========
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+// ========= FIN DE LA SOLUCIÓN =========
 
 import FilterBar from '../components/FilterBar.vue';
 import PaginationControls from '../components/PaginationControls.vue';
@@ -91,6 +97,7 @@ import NewSurgeryModal from '../components/NewSurgeryModal.vue';
 import ReportDrawer from '../components/ReportDrawer.vue';
 import SkeletonLoader from '../components/SkeletonLoader.vue';
 import ReportCard from '../components/ReportCard.vue';
+import GenerateLinkModal from '../components/GenerateLinkModal.vue';
 
 const headerConfig = inject('header-config');
 const openNewSurgeryModal = () => { isNewSurgeryModalVisible.value = true; };
@@ -103,11 +110,7 @@ onMounted(() => {
         text: 'Nueva Cirugía',
         action: openNewSurgeryModal,
         class: 'bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-blue-700 flex items-center space-x-2',
-        icon: markRaw({
-          render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
-            h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 6v6m0 0v6m0-6h6m-6 0H6' })
-          ])
-        })
+        icon: markRaw({ render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 6v6m0 0v6m0-6h6m-6 0H6' }) ]) })
       }
     ]
   };
@@ -122,51 +125,28 @@ const activeFilters = ref({});
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
 const totalReportes = ref(0);
-const selectedReportIds = ref([]);
 const reportes = ref([]);
 const loading = ref(true);
 const error = ref(null);
-const generatingLinkId = ref(null);
 const isNewSurgeryModalVisible = ref(false);
 const isDrawerVisible = ref(false);
 const selectedReporte = ref(null);
-
-const isAllSelected = computed(() => reportes.value.length > 0 && selectedReportIds.value.length === reportes.value.length);
+const isGenerateLinkModalVisible = ref(false);
+const selectedReporteForLink = ref(null);
+const isExporting = ref(false);
 
 const fetchReportes = async () => {
   loading.value = true;
   error.value = null;
   try {
-    let query = supabase.from('reportes').select('*', { count: 'exact' });
+    let query = supabase.from('reportes').select('*, short_links(short_code)', { count: 'exact' });
 
-    // Aplica el filtro de estado si está definido y no es 'todos'.
-    if (activeFilters.value.statusFilter && activeFilters.value.statusFilter !== 'todos') {
-      query = query.eq('estado', activeFilters.value.statusFilter);
-    }
-    
-    // --- INICIO DE LA SOLUCIÓN ---
-    // Se corrige la lógica de búsqueda para usar los campos correctos del objeto de filtros.
-    // Antes buscaba 'searchTerm', ahora busca 'paciente' y 'medico' de forma independiente.
-    
-    // Si hay un término de búsqueda para 'paciente', se aplica el filtro.
-    if (activeFilters.value.paciente?.trim()) {
-      query = query.ilike('paciente', `%${activeFilters.value.paciente.trim()}%`);
-    }
-    // Si hay un término de búsqueda para 'medico', se aplica el filtro.
-    if (activeFilters.value.medico?.trim()) {
-      query = query.ilike('medico', `%${activeFilters.value.medico.trim()}%`);
-    }
-    // --- FIN DE LA SOLUCIÓN ---
-
-    if (activeFilters.value.instrumentador?.trim()) {
-      query = query.ilike('instrumentador_completado', `%${activeFilters.value.instrumentador.trim()}%`);
-    }
-    if (activeFilters.value.startDate) {
-      query = query.gte('fecha_cirugia', activeFilters.value.startDate);
-    }
-    if (activeFilters.value.endDate) {
-      query = query.lte('fecha_cirugia', activeFilters.value.endDate);
-    }
+    if (activeFilters.value.statusFilter && activeFilters.value.statusFilter !== 'todos') query = query.eq('estado', activeFilters.value.statusFilter);
+    if (activeFilters.value.paciente?.trim()) query = query.ilike('paciente', `%${activeFilters.value.paciente.trim()}%`);
+    if (activeFilters.value.medico?.trim()) query = query.ilike('medico', `%${activeFilters.value.medico.trim()}%`);
+    if (activeFilters.value.instrumentador?.trim()) query = query.ilike('instrumentador_completado', `%${activeFilters.value.instrumentador.trim()}%`);
+    if (activeFilters.value.startDate) query = query.gte('fecha_cirugia', activeFilters.value.startDate);
+    if (activeFilters.value.endDate) query = query.lte('fecha_cirugia', activeFilters.value.endDate);
 
     const from = (currentPage.value - 1) * itemsPerPage.value;
     const to = from + itemsPerPage.value - 1;
@@ -175,7 +155,7 @@ const fetchReportes = async () => {
     const { data, error: fetchError, count } = await query;
     if (fetchError) throw fetchError;
     
-    reportes.value = data;
+    reportes.value = data.map(r => ({ ...r, short_code: r.short_links?.[0]?.short_code || null }));
     totalReportes.value = count;
   } catch (err) {
     error.value = err.message;
@@ -184,9 +164,6 @@ const fetchReportes = async () => {
     loading.value = false;
   }
 };
-
-// No se necesita llamar a fetchReportes en onMounted aquí,
-// porque FilterBar emitirá el evento que lo disparará.
 
 const applyFilters = (newFilters) => {
   activeFilters.value = newFilters;
@@ -199,58 +176,107 @@ const goToPage = (page) => {
   fetchReportes();
 };
 
-const toggleSelectAll = (event) => {
-  selectedReportIds.value = event.target.checked ? reportes.value.map(r => r.id) : [];
+const getEstadoClass = (estado) => ({
+  'bg-green-100 text-green-800': estado === 'Enviado',
+  'bg-yellow-100 text-yellow-800': estado === 'Pendiente',
+  'bg-gray-100 text-gray-800 dark:bg-slate-600 dark:text-slate-200': estado === 'Expirado',
+});
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  const date = new Date(`${dateString}T00:00:00`);
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-const toggleSelection = (reporteId) => {
-  const index = selectedReportIds.value.indexOf(reporteId);
-  if (index > -1) selectedReportIds.value.splice(index, 1);
-  else selectedReportIds.value.push(reporteId);
+const getAllFilteredReportes = async () => {
+  let query = supabase.from('reportes').select('*, short_links(short_code)');
+  if (activeFilters.value.statusFilter && activeFilters.value.statusFilter !== 'todos') query = query.eq('estado', activeFilters.value.statusFilter);
+  if (activeFilters.value.paciente?.trim()) query = query.ilike('paciente', `%${activeFilters.value.paciente.trim()}%`);
+  if (activeFilters.value.medico?.trim()) query = query.ilike('medico', `%${activeFilters.value.medico.trim()}%`);
+  if (activeFilters.value.startDate) query = query.gte('fecha_cirugia', activeFilters.value.startDate);
+  if (activeFilters.value.endDate) query = query.lte('fecha_cirugia', activeFilters.value.endDate);
+  
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error) throw error;
+  return data.map(r => ({ ...r, short_code: r.short_links?.[0]?.short_code || null }));
 };
 
-const expireSelectedLinks = async () => {
-  const count = selectedReportIds.value.length;
-  if (count === 0) return;
-  if (!window.confirm(`¿Estás seguro de que quieres expirar ${count} link(s) seleccionados? Esta acción cambiará su estado a 'Expirado'.`)) {
-    return;
-  }
+const exportarListaPDF = async () => {
+  isExporting.value = true;
   try {
-    const { error } = await supabase
-      .from('reportes')
-      .update({ estado: 'Expirado', token: null })
-      .in('id', selectedReportIds.value);
+    const reportesParaExportar = await getAllFilteredReportes();
+    if (reportesParaExportar.length === 0) {
+      toast.info("No hay reportes para exportar con los filtros actuales.");
+      return;
+    }
+
+    const doc = new jsPDF();
+    doc.text("Lista de Cirugías", 14, 16);
     
-    if (error) throw error;
+    const tableColumn = ["ID", "Paciente", "Médico", "Fecha Cirugía", "Estado"];
+    const tableRows = reportesParaExportar.map(reporte => [
+      reporte.id,
+      reporte.paciente,
+      reporte.medico,
+      formatDate(reporte.fecha_cirugia),
+      reporte.estado,
+    ]);
     
-    toast.success(`${count} link(s) han sido expirados.`);
-    selectedReportIds.value = [];
-    fetchReportes();
+    // ========= INICIO DE LA SOLUCIÓN: USO CORRECTO DE AUTOTABLE =========
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+    });
+    // ========= FIN DE LA SOLUCIÓN =========
+
+    doc.save(`lista_cirugias_${new Date().toISOString().slice(0,10)}.pdf`);
+    toast.success("Lista exportada a PDF.");
   } catch (err) {
-    toast.error(`Error al expirar los links: ${err.message}`);
+    toast.error("Error al exportar la lista: " + err.message);
+  } finally {
+    isExporting.value = false;
   }
 };
 
-const exportToCSV = () => {
-  const selected = reportes.value.filter(r => selectedReportIds.value.includes(r.id));
-  if (selected.length === 0) return;
-  const headers = Object.keys(selected[0]);
-  const csvRows = [headers.join(',')];
-  selected.forEach(row => {
-    const values = headers.map(header => `"${('' + row[header]).replace(/"/g, '\\"')}"`);
-    csvRows.push(values.join(','));
-  });
-  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.setAttribute('href', url);
-  a.setAttribute('download', `reportes_${new Date().toISOString().slice(0,10)}.csv`);
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  selectedReportIds.value = [];
-  toast.success("Exportación a CSV completada.");
+const exportarTrazabilidadPDF = async () => {
+  isExporting.value = true;
+  try {
+    const reportesParaExportar = await getAllFilteredReportes();
+    if (reportesParaExportar.length === 0) {
+      toast.info("No hay reportes para exportar con los filtros actuales.");
+      return;
+    }
+
+    const doc = new jsPDF('l', 'mm', 'a4');
+    doc.text("Reporte de Trazabilidad de Fichas", 14, 16);
+    
+    const tableColumn = ["Paciente", "Médico", "Fecha Cirugía", "Estado", "Fecha Envío", "Instrumentador", "Puntaje IQ"];
+    const tableRows = reportesParaExportar.map(reporte => [
+      reporte.paciente,
+      reporte.medico,
+      formatDate(reporte.fecha_cirugia),
+      reporte.estado,
+      reporte.fecha_envio ? formatDate(reporte.fecha_envio) : 'N/A',
+      reporte.instrumentador_completado || 'N/A',
+      reporte.puntaje_iq || 'N/A',
+    ]);
+
+    // ========= INICIO DE LA SOLUCIÓN: USO CORRECTO DE AUTOTABLE =========
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+    });
+    // ========= FIN DE LA SOLUCIÓN =========
+
+    doc.save(`trazabilidad_fichas_${new Date().toISOString().slice(0,10)}.pdf`);
+    toast.success("Reporte de trazabilidad exportado.");
+  } catch (err) {
+    toast.error("Error al exportar trazabilidad: " + err.message);
+  } finally {
+    isExporting.value = false;
+  }
 };
 
 const closeNewSurgeryModal = () => { isNewSurgeryModalVisible.value = false; };
@@ -261,36 +287,30 @@ const openDrawer = (reporte) => {
 const closeDrawer = () => {
   isDrawerVisible.value = false;
 };
-
 const handleSurgeryCreated = () => {
   toast.success("¡Cirugía creada con éxito!");
   fetchReportes();
 };
 
-const generarLink = async (reporte) => {
-  generatingLinkId.value = reporte.id;
-  try {
-    const nuevoToken = uuidv4();
-    const { error: updateError } = await supabase.from('reportes').update({ token: nuevoToken }).eq('id', reporte.id);
-    if (updateError) throw updateError;
-    reporte.token = nuevoToken;
-    const linkCompleto = `${window.location.origin}/ficha/${nuevoToken}`;
-    await navigator.clipboard.writeText(linkCompleto);
-    toast.success("¡Link generado y copiado!");
-  } catch (error) {
-    toast.error(`Error al generar el link: ${error.message}`);
-  } finally {
-    generatingLinkId.value = null;
+const openGenerateLinkModal = (reporte) => {
+  selectedReporteForLink.value = reporte;
+  isGenerateLinkModalVisible.value = true;
+};
+const closeGenerateLinkModal = () => {
+  isGenerateLinkModalVisible.value = false;
+  selectedReporteForLink.value = null;
+};
+const handleLinkGenerated = ({ reporteId, short_code }) => {
+  const reporteIndex = reportes.value.findIndex(r => r.id === reporteId);
+  if (reporteIndex !== -1) {
+    reportes.value[reporteIndex].short_code = short_code;
   }
 };
-
-const copiarLink = async (reporte) => {
-  const linkCompleto = `${window.location.origin}/ficha/${reporte.token}`;
-  try {
-    await navigator.clipboard.writeText(linkCompleto);
-    toast.success("¡Link copiado al portapapeles!");
-  } catch (err) {
-    toast.error("No se pudo copiar el link.");
+const handleLinkExpired = ({ reporteId }) => {
+  const reporteIndex = reportes.value.findIndex(r => r.id === reporteId);
+  if (reporteIndex !== -1) {
+    reportes.value[reporteIndex].estado = 'Expirado';
+    reportes.value[reporteIndex].short_code = null;
   }
 };
 </script>
