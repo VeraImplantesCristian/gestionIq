@@ -16,11 +16,7 @@ import IncidenciasView from '../views/IncidenciasView.vue';
 import RankingView from '../views/RankingView.vue';
 import ReclamoView from '../views/ReclamoView.vue';
 import QuejasView from '../views/QuejasView.vue';
-
-// ========= INICIO DE LA SOLUCIÓN: IMPORTAR LA NUEVA VISTA =========
 import PedidosEspecialesView from '../views/PedidosEspecialesView.vue';
-// ========= FIN DE LA SOLUCIÓN =========
-
 
 const routes = [
   // Rutas públicas (no usan AdminLayout)
@@ -35,8 +31,16 @@ const routes = [
     component: FichaView,
     props: true
   },
-  // La ruta del short link '/f/' debería estar aquí si la tienes
-  // { path: '/f/:short_code', ... }
+  // ========= INICIO DE LA SOLUCIÓN: AÑADIR LA RUTA PARA LINKS CORTOS =========
+  // Esta nueva ruta captura las URLs con el formato /f/codigo.
+  // Dirige al mismo componente FichaView, pasándole el short_code como prop.
+  {
+    path: '/f/:short_code',
+    name: 'FichaCorta',
+    component: FichaView,
+    props: true
+  },
+  // ========= FIN DE LA SOLUCIÓN =========
   {
     path: '/reclamo',
     name: 'Reclamo',
@@ -49,47 +53,14 @@ const routes = [
     component: AdminLayout,
     meta: { requiresAuth: true },
     children: [
-      {
-        path: '',
-        redirect: '/admin'
-      },
-      {
-        path: 'admin',
-        name: 'Admin',
-        component: AdminView,
-      },
-      {
-        path: 'estadisticas',
-        name: 'Estadisticas',
-        component: StatsView,
-      },
-      {
-        path: 'instrumentadores',
-        name: 'Instrumentadores',
-        component: InstrumentadoresView,
-      },
-      {
-        path: 'incidencias',
-        name: 'Incidencias',
-        component: IncidenciasView,
-      },
-      {
-        path: 'ranking',
-        name: 'Ranking',
-        component: RankingView,
-      },
-      {
-        path: 'quejas',
-        name: 'Quejas',
-        component: QuejasView,
-      },
-      // ========= INICIO DE LA SOLUCIÓN: AÑADIR LA NUEVA RUTA ANIDADA =========
-      {
-        path: 'pedidos-especiales', // Se accede con /pedidos-especiales
-        name: 'PedidosEspeciales',
-        component: PedidosEspecialesView,
-      }
-      // ========= FIN DE LA SOLUCIÓN =========
+      { path: '', redirect: '/admin' },
+      { path: 'admin', name: 'Admin', component: AdminView },
+      { path: 'estadisticas', name: 'Estadisticas', component: StatsView },
+      { path: 'instrumentadores', name: 'Instrumentadores', component: InstrumentadoresView },
+      { path: 'incidencias', name: 'Incidencias', component: IncidenciasView },
+      { path: 'ranking', name: 'Ranking', component: RankingView },
+      { path: 'quejas', name: 'Quejas', component: QuejasView },
+      { path: 'pedidos-especiales', name: 'PedidosEspeciales', component: PedidosEspecialesView }
     ]
   }
 ];
@@ -99,7 +70,7 @@ const router = createRouter({
   routes,
 });
 
-// El guardia de navegación protege todas las rutas anidadas automáticamente.
+// El guardia de navegación se mantiene sin cambios.
 router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
   if (requiresAuth) {
