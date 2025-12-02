@@ -37,6 +37,21 @@
         <!-- Guía de Siguientes Pasos -->
         <div class="w-full text-left space-y-4 mt-5 border-t border-slate-200 dark:border-slate-700 pt-6">
           
+          <!-- ========= INICIO DE LA REORGANIZACIÓN ========= -->
+          <!-- 1. El bloque de Información de Pago ahora está en primer lugar. -->
+          <div class="p-4 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500">
+            <div class="flex items-start gap-3">
+              <BanknotesIcon class="w-6 h-6 text-green-500 shrink-0" />
+              <div>
+                <h3 class="font-bold text-green-800 dark:text-green-300">Información de Pago</h3>
+                <p class="text-sm text-green-700 dark:text-green-200 mt-1">
+                  Procesaremos tu pago <strong>dentro de los 7 días hábiles</strong> posterior a la recepción y control del material en nuestro depósito. Apreciamos mucho tu trabajo. ¡Gracias! 🤝
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. El resto de los bloques se mantienen en su orden original. -->
           <!-- Paso 1: Alerta Roja (Stickers) -->
           <div class="p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500">
             <div class="flex items-start gap-3">
@@ -75,19 +90,7 @@
               </div>
             </div>
           </div>
-          
-          <!-- Bloque de Información de Pago -->
-          <div class="p-4 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500">
-            <div class="flex items-start gap-3">
-              <BanknotesIcon class="w-6 h-6 text-green-500 shrink-0" />
-              <div>
-                <h3 class="font-bold text-green-800 dark:text-green-300">Información de Pago</h3>
-                <p class="text-sm text-green-700 dark:text-green-200 mt-1">
-                  Tu pago se procesará dentro de los <strong>7 días hábiles</strong> siguientes a la recepción y control del material en nuestro depósito. ¡Gracias por tu excelente trabajo!
-                </p>
-              </div>
-            </div>
-          </div>
+          <!-- ========= FIN DE LA REORGANIZACIÓN ========= -->
 
         </div>
 

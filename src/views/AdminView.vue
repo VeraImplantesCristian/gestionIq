@@ -131,15 +131,9 @@ const fetchReportes = async () => {
       p_medico: activeFilters.value.medico,
       p_instrumentador: activeFilters.value.instrumentador,
       p_estado: activeFilters.value.estado,
-      
-      // ========= INICIO DE LA CORRECCIÓN =========
-      // Si el valor de la fecha es una cadena vacía (falsy), enviamos 'null'.
-      // De lo contrario, enviamos el valor de la fecha.
-      // Esto evita que se envíe "" a la base de datos.
       p_start_date: activeFilters.value.startDate || null,
       p_end_date: activeFilters.value.endDate || null,
-      // ========= FIN DE LA CORRECCIÓN =========
-
+      p_date_filter_field: activeFilters.value.dateFilterField,
       p_rating_puntualidad_max: activeFilters.value.rating_puntualidad_max,
       p_rating_condiciones_max: activeFilters.value.rating_condiciones_max,
       p_rating_asesoramiento_max: activeFilters.value.rating_asesoramiento_max,
@@ -187,8 +181,13 @@ const getEstadoClass = (estado) => ({
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
-  const date = new Date(`${dateString}T00:00:00`);
-  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  // La fecha de la base de datos puede venir como DATE o TIMESTAMPTZ.
+  // Crear un objeto Date a partir de ella es la forma más segura de manejar ambos casos.
+  const date = new Date(dateString);
+  // Corregimos el problema de zona horaria para fechas tipo 'YYYY-MM-DD'
+  const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+  const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+  return adjustedDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 const getAllFilteredReportes = async () => {
@@ -199,6 +198,7 @@ const getAllFilteredReportes = async () => {
       p_estado: activeFilters.value.estado,
       p_start_date: activeFilters.value.startDate || null,
       p_end_date: activeFilters.value.endDate || null,
+      p_date_filter_field: activeFilters.value.dateFilterField,
       p_rating_puntualidad_max: activeFilters.value.rating_puntualidad_max,
       p_rating_condiciones_max: activeFilters.value.rating_condiciones_max,
       p_rating_asesoramiento_max: activeFilters.value.rating_asesoramiento_max,

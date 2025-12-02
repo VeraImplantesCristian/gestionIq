@@ -1,8 +1,10 @@
 <!-- src/components/Sidebar.vue -->
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-20 bg-black/30 backdrop-blur-[1px] md:hidden" @click="$emit('close-sidebar')" />
+  <!-- El overlay para cerrar el menú en móvil -->
+  <div v-if="isOpen" class="fixed inset-0 z-20 bg-black/30 backdrop-blur-[1px] md:hidden" @click="$emit('toggle-sidebar')" />
 
   <aside ref="sideRef" :class="['w-64 bg-white dark:bg-slate-800 shadow-md flex flex-col fixed inset-y-0 left-0 z-30 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0', isOpen ? 'translate-x-0' : '-translate-x-full']" role="navigation" aria-label="Menú principal">
+    <!-- Cabecera del Sidebar -->
     <div class="p-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
       <div class="flex items-center gap-2">
         <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500 text-white font-bold">IQ</span>
@@ -10,13 +12,16 @@
       </div>
     </div>
 
+    <!-- Navegación Principal -->
     <nav class="flex-grow p-3 space-y-1">
       <div v-for="item in visibleItems" :key="item.label">
+        <!-- Enlace simple -->
         <button v-if="!item.children" @click="item.action ? item.action() : go(item.to)" class="nav-link group" :aria-current="isActive(item) ? 'page' : undefined">
           <component :is="item.icon" class="w-5 h-5 shrink-0"/>
           <span class="truncate">{{ item.label }}</span>
           <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
         </button>
+        <!-- Enlace con submenú -->
         <div v-else>
           <button @click="toggleSubmenu(item.label)" class="nav-link group w-full" :aria-current="isActive(item) ? 'page' : undefined">
             <component :is="item.icon" class="w-5 h-5 shrink-0"/>
@@ -33,6 +38,7 @@
       </div>
     </nav>
 
+    <!-- Pie del Sidebar -->
     <div class="p-4 mt-auto border-t border-gray-200 dark:border-slate-700">
       <button @click="handleLogout" class="w-full flex items-center justify-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg">
         <LogoutIcon class="w-5 h-5"/>
@@ -49,11 +55,18 @@ import { useRouter, useRoute } from 'vue-router';
 import { supabase } from '../services/supabase';
 import { useToast } from 'vue-toastification';
 
-const props = defineProps({ isOpen: Boolean, userRole: { type: String, default: 'admin' } });
-// ========= INICIO DE LA SOLUCIÓN: CORREGIR EL 'defineEmits' =========
-// Se añade 'open-share-reclamo-modal' al array para declarar formalmente el evento.
-const emit = defineEmits(['close-sidebar', 'open-share-reclamo-modal']);
-// ========= FIN DE LA SOLUCIÓN =========
+const props = defineProps({ 
+  isOpen: Boolean, 
+  userRole: { type: String, default: 'admin' } 
+});
+
+// ========= INICIO DE LA CORRECCIÓN =========
+// Se añade 'toggle-sidebar' al array de emits.
+// También he notado que usas 'close-sidebar' en varios sitios, así que lo unifico todo a 'toggle-sidebar'
+// para mantener la consistencia, ya que es la acción que realmente hace el padre.
+const emit = defineEmits(['toggle-sidebar']);
+// ========= FIN DE LA CORRECCIÓN =========
+
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
@@ -69,7 +82,8 @@ const toggleSubmenu = (label) => {
 };
 
 const sideRef = ref(null);
-const onKey = (e) => { if (e.key === 'Escape' && props.isOpen) emit('close-sidebar'); };
+// He simplificado la lógica de cierre para usar siempre el mismo evento.
+const onKey = (e) => { if (e.key === 'Escape' && props.isOpen) emit('toggle-sidebar'); };
 onMounted(() => document.addEventListener('keydown', onKey));
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 
@@ -110,7 +124,10 @@ const isActive = (item) => {
   return false;
 };
 
-const go = (to) => { router.push(to); emit('close-sidebar'); };
+const go = (to) => { 
+  router.push(to); 
+  emit('toggle-sidebar'); 
+};
 
 const loggingOut = ref(false);
 const handleLogout = async () => {

@@ -4,7 +4,6 @@
     
     <!-- FILA 1: Filtros Principales y Control de Fechas -->
     <div class="flex flex-wrap items-end gap-4">
-      <!-- Filtros de Texto -->
       <div class="flex-grow grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label for="paciente" class="filter-label">Paciente</label>
@@ -20,9 +19,7 @@
         </div>
       </div>
       
-      <!-- ========= INICIO DE LA MEJORA: MENÚ DE RANGO DE FECHAS ========= -->
       <div class="grid grid-cols-2 gap-4 sm:flex sm:gap-2">
-        <!-- Menú Desplegable de Rangos Predefinidos -->
         <div class="relative" ref="dateRangeMenu">
           <label class="filter-label">Fichas Recibidas</label>
           <button @click="isDateRangeMenuOpen = !isDateRangeMenuOpen" class="btn-secondary w-full flex items-center justify-between">
@@ -37,7 +34,6 @@
             </div>
           </Transition>
         </div>
-        <!-- Filtros de Fecha Manual (Personalizado) -->
         <div>
           <label for="startDate" class="filter-label">Desde</label>
           <input type="date" v-model="filters.startDate" id="startDate" class="input-form">
@@ -47,13 +43,11 @@
           <input type="date" v-model="filters.endDate" id="endDate" class="input-form">
         </div>
       </div>
-      <!-- ========= FIN DE LA MEJORA ========= -->
     </div>
 
     <!-- FILA 2: Filtros de Análisis y Acciones -->
     <div class="border-t border-gray-200 dark:border-slate-700 pt-4">
       <div class="flex flex-wrap items-end gap-4">
-        <!-- Filtros de Calidad y Estado -->
         <div class="flex-grow grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4">
           <div>
             <label for="status" class="filter-label">Estado</label>
@@ -94,7 +88,6 @@
           </div>
         </div>
         
-        <!-- Botones de Acción -->
         <div class="flex items-center gap-2 shrink-0">
           <button @click="handleClear" class="btn-secondary">Limpiar</button>
           <button @click="handleApply" class="btn-primary">Aplicar Filtros</button>
@@ -145,6 +138,10 @@ const filters = reactive({
   estado: 'todos',
   startDate: '',
   endDate: '',
+  // ========= INICIO DE LA MEJORA =========
+  // 1. Añadimos el nuevo campo para controlar el tipo de filtro de fecha.
+  dateFilterField: 'fecha_cirugia', // Valor por defecto
+  // ========= FIN DE LA MEJORA =========
   rating_puntualidad_max: null,
   rating_condiciones_max: null,
   rating_asesoramiento_max: null,
@@ -163,6 +160,7 @@ const clearFilters = () => {
     estado: 'todos',
     startDate: '',
     endDate: '',
+    dateFilterField: 'fecha_cirugia', // Al limpiar, vuelve al valor por defecto.
     rating_puntualidad_max: null,
     rating_condiciones_max: null,
     rating_asesoramiento_max: null,
@@ -178,7 +176,6 @@ const handleClear = () => {
 
 const formatDateForInput = (date) => format(date, 'yyyy-MM-dd');
 
-// Lógica para el nuevo menú de rangos de fecha
 const selectedRangeLabel = ref('Personalizado');
 const isDateRangeMenuOpen = ref(false);
 const dateRangeMenu = ref(null);
@@ -187,6 +184,10 @@ onClickOutside(dateRangeMenu, () => { isDateRangeMenuOpen.value = false; });
 const setDateRange = (range) => {
   clearFilters();
   filters.estado = 'Enviado';
+  // ========= INICIO DE LA MEJORA =========
+  // 2. Le decimos al filtro que use la fecha de envío.
+  filters.dateFilterField = 'fecha_envio';
+  // ========= FIN DE LA MEJORA =========
   const now = new Date();
   
   if (range === 'today') {
@@ -207,17 +208,14 @@ const setDateRange = (range) => {
   handleApply();
 };
 
-// Watcher para actualizar la etiqueta a "Personalizado" si se cambian las fechas manualmente
 watch([() => filters.startDate, () => filters.endDate], () => {
-  // Esta lógica es un poco compleja para evitar que se ponga "Personalizado"
-  // cuando se selecciona un rango predefinido.
-  // Una forma simple es que cualquier cambio manual lo marque como personalizado.
-  if (isDateRangeMenuOpen.value === false) { // Solo si el menú no está abierto
+  if (isDateRangeMenuOpen.value === false) {
     selectedRangeLabel.value = 'Personalizado';
+    // Si el usuario cambia las fechas manualmente, volvemos a buscar por fecha de cirugía.
+    filters.dateFilterField = 'fecha_cirugia';
   }
 });
 
-// Lógica para el menú de exportación
 const isExportMenuOpen = ref(false);
 const exportMenu = ref(null);
 const toggleExportMenu = () => { isExportMenuOpen.value = !isExportMenuOpen.value; };

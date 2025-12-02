@@ -1,39 +1,39 @@
 <!-- src/layouts/AdminLayout.vue -->
 <template>
-  <div class="relative min-h-screen md:flex bg-gray-100 dark:bg-slate-900">
-    
-    <Sidebar 
-      :is-open="isSidebarOpen" 
-      user-role="admin" 
-      @close-sidebar="isSidebarOpen = false"
-      @open-share-reclamo-modal="openShareReclamoModal"
-    />
+  <div class="flex h-screen bg-gray-100 dark:bg-slate-900">
+    <Sidebar :is-open="isSidebarOpen" @toggle-sidebar="toggleSidebar" />
 
     <div class="flex-1 flex flex-col overflow-hidden">
-      <header class="p-4 bg-white dark:bg-slate-800 shadow-md flex justify-between items-center shrink-0">
-        <div class="flex items-center gap-4">
-          <button @click="isSidebarOpen = !isSidebarOpen" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 md:hidden">
-            <svg v-if="!isSidebarOpen" class="w-6 h-6 text-gray-800 dark:text-slate-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-            <svg v-else class="w-6 h-6 text-gray-800 dark:text-slate-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      <header class="flex justify-between items-center p-4 bg-white dark:bg-slate-800 border-b dark:border-slate-700 shadow-sm">
+        <div class="flex items-center">
+          <button @click="toggleSidebar" class="text-gray-500 dark:text-slate-400 focus:outline-none lg:hidden">
+            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
           </button>
-          
-          <h1 v-if="headerConfig.title" class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-100">{{ headerConfig.title }}</h1>
+          <h1 class="text-xl font-semibold text-gray-800 dark:text-slate-200 ml-4">{{ headerConfig.title }}</h1>
         </div>
-
-        <div class="flex items-center gap-3">
-          <div v-if="headerConfig.buttons && headerConfig.buttons.length > 0" class="hidden md:flex items-center gap-3">
-            <button v-for="button in headerConfig.buttons" :key="button.text" @click="button.action" :class="button.class">
-              <component v-if="button.icon" :is="button.icon" class="w-5 h-5" />
-              <span>{{ button.text }}</span>
-            </button>
-          </div>
+        <div class="flex items-center space-x-4">
+          <component v-for="(button, index) in headerConfig.buttons" :key="index" :is="'button'" @click="button.action" :class="button.class">
+            <component v-if="button.icon" :is="button.icon" />
+            <span>{{ button.text }}</span>
+          </component>
           
-          <!-- El componente NotificationBell ahora está conectado a la nueva lógica -->
-          <NotificationBell 
-            :notifications="notifications"
-            @clear="markAllAsRead"
-            @mark-all-as-read="markAllAsRead"
-          />
+          <div class="relative" ref="notificationMenuRef">
+            <button @click="toggleDropdown" class="p-2 rounded-full text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none">
+              <BellIcon class="h-6 w-6" />
+              <span v-if="unreadCount > 0" class="absolute top-0 right-0 h-3 w-3 bg-red-500 rounded-full border-2 border-white dark:border-slate-800"></span>
+            </button>
+            
+            <!-- El dropdown ahora escucha los nuevos eventos -->
+            <NotificationDropdown
+              :show="isDropdownOpen"
+              :notifications="notifications"
+              @notification-click="handleNotificationClick"
+              @mark-all-read="handleMarkAllRead"
+              @view-all="goToAllNotifications"
+            />
+          </div>
         </div>
       </header>
 
@@ -41,101 +41,116 @@
         <router-view />
       </main>
     </div>
-
-    <ShareReclamoLinkModal 
-      :show="isShareReclamoModalVisible" 
-      @close="closeShareReclamoModal" 
+    
+    <ReportDrawer 
+      :show="isDrawerVisible" 
+      :reporte="selectedReporteForDrawer" 
+      @close="closeDrawer"
+      @updated="handleDrawerUpdate"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, provide } from 'vue';
+import { ref, provide, onMounted, onUnmounted, computed } from 'vue';
+import { useRouter } from 'vue-router'; // <-- AÑADIR IMPORT
+import { useToast } from 'vue-toastification';
 import { supabase } from '../services/supabase.js';
+import { onClickOutside } from '@vueuse/core';
 import Sidebar from '../components/Sidebar.vue';
-import NotificationBell from '../components/NotificationBell.vue';
-import ShareReclamoLinkModal from '../components/reclamos/ShareReclamoLinkModal.vue';
+import ReportDrawer from '../components/ReportDrawer.vue';
+import { BellIcon } from '@heroicons/vue/24/outline';
+import NotificationDropdown from '../components/NotificationDropdown.vue';
 
-// --- ESTADO Y LÓGICA DEL MODAL ---
-const isShareReclamoModalVisible = ref(false);
-const openShareReclamoModal = () => { isShareReclamoModalVisible.value = true; };
-const closeShareReclamoModal = () => { isShareReclamoModalVisible.value = false; };
-
-// --- ESTADO DEL SIDEBAR ---
+const toast = useToast();
+const router = useRouter(); // <-- INICIALIZAR ROUTER
 const isSidebarOpen = ref(false);
+const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value; };
 
-// --- LÓGICA DE CABECERA DINÁMICA (PROVIDE) ---
-const headerConfig = ref({
-  title: '',
-  buttons: []
-});
+const headerConfig = ref({ title: '', buttons: [] });
 provide('header-config', headerConfig);
-provide('open-share-reclamo-modal-fn', openShareReclamoModal);
 
-
-// ========= INICIO DE LA NUEVA LÓGICA DE NOTIFICACIONES =========
 const notifications = ref([]);
+const isDropdownOpen = ref(false);
+const notificationMenuRef = ref(null);
 let notificationChannel = null;
 
-// Función para formatear los datos de la BD al formato que espera el componente.
-const formatNotification = (dbNotification) => {
-  return {
-    id: dbNotification.id,
-    message: dbNotification.message,
-    // Construimos el enlace para redirigir al admin y resaltar la fila.
-    link: `/admin?highlight=${dbNotification.reporte_id}`,
-    time: dbNotification.created_at,
-    read: dbNotification.is_read,
-  };
-};
+const unreadCount = computed(() => notifications.value.filter(n => !n.is_read).length);
 
-// Función para obtener las notificaciones iniciales no leídas.
-const fetchInitialNotifications = async () => {
-  const { data, error } = await supabase.rpc('get_unread_notifications');
+const fetchNotifications = async () => {
+  const { data, error } = await supabase.rpc('get_notifications');
   if (error) {
-    console.error('Error al obtener notificaciones:', error);
+    toast.error('No se pudieron cargar las notificaciones.');
   } else {
-    notifications.value = data.map(formatNotification);
+    notifications.value = data;
   }
 };
 
-// Función para marcar todas las notificaciones como leídas.
-const markAllAsRead = async () => {
-  // Actualiza el estado local inmediatamente para una UX fluida.
-  notifications.value.forEach(n => n.read = true);
-  // Llama a la RPC en segundo plano para persistir el cambio en la BD.
-  const { error } = await supabase.rpc('mark_all_notifications_as_read');
-  if (error) console.error('Error al marcar notificaciones como leídas:', error);
+// ========= INICIO DE LA MEJORA: FUNCIÓN PARA MARCAR COMO LEÍDAS =========
+const handleMarkAllRead = async () => {
+  // Actualización optimista de la UI
+  notifications.value.forEach(n => n.is_read = true);
+  // Llamada a la RPC para persistir el cambio
+  const { error } = await supabase.rpc('mark_notifications_as_read');
+  if (error) {
+    toast.error("Error al marcar las notificaciones.");
+    // Si hay un error, podríamos revertir el cambio en la UI, pero por ahora lo dejamos así.
+  }
+};
+// ========= FIN DE LA MEJORA =========
+
+const toggleDropdown = () => {
+  isDropdownOpen.value = !isDropdownOpen.value;
+  if (isDropdownOpen.value && unreadCount.value > 0) {
+    // Usamos un pequeño delay para que el usuario vea el cambio de estado
+    setTimeout(handleMarkAllRead, 1000);
+  }
 };
 
-// Configuración del listener de Supabase Realtime.
-const setupRealtimeListener = () => {
-  // Ahora escuchamos la tabla 'notifications', no 'reportes'.
+onClickOutside(notificationMenuRef, () => { isDropdownOpen.value = false; });
+
+const handleNotificationClick = (notification) => {
+  isDropdownOpen.value = false;
+  supabase.from('reportes').select('*').eq('id', notification.reporte_id).single()
+    .then(({ data, error }) => {
+      if (error) throw error;
+      openDrawer(data);
+    })
+    .catch(err => toast.error('No se pudo encontrar el reporte asociado.'));
+};
+
+// ========= INICIO DE LA MEJORA: FUNCIÓN PARA NAVEGAR =========
+const goToAllNotifications = () => {
+  isDropdownOpen.value = false;
+  router.push({ name: 'Notificaciones' });
+};
+// ========= FIN DE LA MEJORA =========
+
+onMounted(() => {
+  fetchNotifications();
   notificationChannel = supabase
     .channel('public:notifications')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'notifications' },
-      (payload) => {
-        console.log('Nueva notificación recibida en tiempo real:', payload.new);
-        // Añade la nueva notificación al principio de la lista, ya formateada.
-        notifications.value.unshift(formatNotification(payload.new));
-      }
-    )
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+      notifications.value.unshift(payload.new);
+      toast.success(payload.new.message);
+    })
     .subscribe();
-};
-
-// Ciclo de vida del componente: iniciar todo al montar.
-onMounted(() => {
-  fetchInitialNotifications();
-  setupRealtimeListener();
 });
 
-// Limpiar la suscripción al desmontar para evitar fugas de memoria.
 onUnmounted(() => {
   if (notificationChannel) {
     supabase.removeChannel(notificationChannel);
   }
 });
-// ========= FIN DE LA NUEVA LÓGICA DE NOTIFICACIONES =========
+
+const isDrawerVisible = ref(false);
+const selectedReporteForDrawer = ref(null);
+const openDrawer = (reporte) => {
+  selectedReporteForDrawer.value = reporte;
+  isDrawerVisible.value = true;
+};
+const closeDrawer = () => {
+  isDrawerVisible.value = false;
+};
+const handleDrawerUpdate = () => {};
 </script>

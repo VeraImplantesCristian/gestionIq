@@ -3,10 +3,8 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { supabase } from '../services/supabase';
 
-// Importamos el Layout que actuará como padre
 import AdminLayout from '../layouts/AdminLayout.vue';
 
-// Importamos todas las vistas
 import AdminView from '../views/AdminView.vue';
 import FichaView from '../views/FichaView.vue';
 import LoginView from '../views/LoginView.vue';
@@ -17,14 +15,12 @@ import RankingView from '../views/RankingView.vue';
 import ReclamoView from '../views/ReclamoView.vue';
 import QuejasView from '../views/QuejasView.vue';
 import PedidosEspecialesView from '../views/PedidosEspecialesView.vue';
-
-// ========= INICIO DE LA MEJORA =========
-// 1. Importamos el nuevo componente de vista que vamos a crear.
+import NotificationsView from '../views/NotificationsView.vue';
 import ActivitySummaryView from '../views/ActivitySummaryView.vue';
-// ========= FIN DE LA MEJORA =========
+
 
 const routes = [
-  // Rutas públicas (no usan AdminLayout)
+  // Rutas públicas
   {
     path: '/login',
     name: 'Login',
@@ -47,21 +43,14 @@ const routes = [
     name: 'Reclamo',
     component: ReclamoView
   },
-
-  // ========= INICIO DE LA MEJORA =========
-  // 2. Añadimos la nueva ruta para el resumen de actividad.
-  // Es una ruta pública porque el acceso está protegido por el token en la URL.
   {
-    // La ruta será, por ejemplo, /resumen/a1b2c3d4e5f6a7b8
     path: '/resumen/:token',
     name: 'ActivitySummary',
     component: ActivitySummaryView,
-    // 'props: true' pasa el parámetro ':token' como una prop al componente.
     props: true,
   },
-  // ========= FIN DE LA MEJORA =========
 
-  // Rutas protegidas que usan AdminLayout
+  // Rutas protegidas
   {
     path: '/',
     component: AdminLayout,
@@ -74,7 +63,8 @@ const routes = [
       { path: 'incidencias', name: 'Incidencias', component: IncidenciasView },
       { path: 'ranking', name: 'Ranking', component: RankingView },
       { path: 'quejas', name: 'Quejas', component: QuejasView },
-      { path: 'pedidos-specials', name: 'PedidosEspeciales', component: PedidosEspecialesView }
+      { path: 'pedidos-especiales', name: 'PedidosEspeciales', component: PedidosEspecialesView },
+      { path: 'notificaciones', name: 'Notificaciones', component: NotificationsView }
     ]
   }
 ];
@@ -84,7 +74,6 @@ const router = createRouter({
   routes,
 });
 
-// El guardia de navegación se mantiene sin cambios.
 router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
   if (requiresAuth) {
