@@ -29,10 +29,7 @@
           </thead>
           <tbody class="bg-white divide-y divide-gray-200 dark:bg-slate-800 dark:divide-slate-700">
             <tr v-if="reportes.length === 0"><td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-slate-400">No se encontraron reportes con los filtros actuales.</td></tr>
-            <!-- ========= INICIO DE LA MEJORA: RESALTADO DE FILA ========= -->
-            <!-- Se añade una clase dinámica a la fila para resaltarla si su ID coincide con el de la notificación. -->
-            <tr v-for="reporte in reportes" :key="reporte.id" :class="{ 'bg-blue-50 dark:bg-blue-900/20': reporte.id == highlightedReportId }">
-            <!-- ========= FIN DE LA MEJORA ========= -->
+            <tr v-for="reporte in reportes" :key="reporte.id">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-slate-100">{{ reporte.paciente }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">{{ reporte.medico }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">{{ reporte.instrumentador_completado || 'N/A' }}</td>
@@ -73,15 +70,10 @@
 </template>
 
 <script setup>
-// ========= INICIO DE LA CORRECCIÓN: IMPORTACIONES =========
-// Se agrupan las importaciones de Vue y se añade 'watchEffect' que faltaba.
-import { ref, onMounted, onUnmounted, inject, h, markRaw, watchEffect } from 'vue';
-// Se importa 'useRoute' que faltaba.
-import { useRoute } from 'vue-router';
-// ========= FIN DE LA CORRECCIÓN: IMPORTACIONES =========
-
+import { ref, onMounted, onUnmounted, inject, h, markRaw } from 'vue';
 import { supabase } from '../services/supabase.js';
 import { useToast } from 'vue-toastification';
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -95,37 +87,6 @@ import GenerateLinkModal from '../components/GenerateLinkModal.vue';
 
 const headerConfig = inject('header-config');
 const openNewSurgeryModal = () => { isNewSurgeryModalVisible.value = true; };
-
-// ========= INICIO DE LA MEJORA: LÓGICA DE RESALTADO =========
-const route = useRoute();
-const highlightedReportId = ref(null); // Estado para guardar el ID a resaltar.
-
-// Este 'watchEffect' se ejecutará al cargar y cada vez que la URL cambie.
-watchEffect(async () => {
-  const highlightId = route.query.highlight;
-  if (highlightId) {
-    console.log('Resaltar reporte con ID:', highlightId);
-    highlightedReportId.value = highlightId;
-    
-    // Buscamos la notificación asociada al reporte para marcarla como leída.
-    // Esto es más robusto que usar el ID del reporte directamente.
-    const { data: notification } = await supabase
-      .from('notifications')
-      .select('id')
-      .eq('reporte_id', highlightId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (notification) {
-      // Llamamos a la RPC para marcar la notificación específica como leída.
-      await supabase.rpc('mark_notification_as_read', { p_notification_id: notification.id });
-    }
-  } else {
-    highlightedReportId.value = null;
-  }
-});
-// ========= FIN DE LA MEJORA =========
 
 onMounted(() => {
   headerConfig.value = {
@@ -170,8 +131,15 @@ const fetchReportes = async () => {
       p_medico: activeFilters.value.medico,
       p_instrumentador: activeFilters.value.instrumentador,
       p_estado: activeFilters.value.estado,
-      p_start_date: activeFilters.value.startDate,
-      p_end_date: activeFilters.value.endDate,
+      
+      // ========= INICIO DE LA CORRECCIÓN =========
+      // Si el valor de la fecha es una cadena vacía (falsy), enviamos 'null'.
+      // De lo contrario, enviamos el valor de la fecha.
+      // Esto evita que se envíe "" a la base de datos.
+      p_start_date: activeFilters.value.startDate || null,
+      p_end_date: activeFilters.value.endDate || null,
+      // ========= FIN DE LA CORRECCIÓN =========
+
       p_rating_puntualidad_max: activeFilters.value.rating_puntualidad_max,
       p_rating_condiciones_max: activeFilters.value.rating_condiciones_max,
       p_rating_asesoramiento_max: activeFilters.value.rating_asesoramiento_max,
@@ -229,8 +197,8 @@ const getAllFilteredReportes = async () => {
       p_medico: activeFilters.value.medico,
       p_instrumentador: activeFilters.value.instrumentador,
       p_estado: activeFilters.value.estado,
-      p_start_date: activeFilters.value.startDate,
-      p_end_date: activeFilters.value.endDate,
+      p_start_date: activeFilters.value.startDate || null,
+      p_end_date: activeFilters.value.endDate || null,
       p_rating_puntualidad_max: activeFilters.value.rating_puntualidad_max,
       p_rating_condiciones_max: activeFilters.value.rating_condiciones_max,
       p_rating_asesoramiento_max: activeFilters.value.rating_asesoramiento_max,
@@ -321,10 +289,7 @@ const closeGenerateLinkModal = () => {
   selectedReporteForLink.value = null;
 };
 const handleLinkGenerated = ({ reporteId, short_code }) => {
-  const reporteIndex = reportes.value.findIndex(r => r.id === reporteId);
-  if (reporteIndex !== -1) {
-    // Lógica mantenida por si se usa en otro lado.
-  }
+  // Lógica mantenida por si es necesaria en el futuro.
 };
 const handleLinkExpired = ({ reporteId }) => {
   const reporteIndex = reportes.value.findIndex(r => r.id === reporteId);
