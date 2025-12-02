@@ -26,11 +26,9 @@
               <button @click="activeTab = 'history'" :class="['py-2 px-3 text-sm font-semibold rounded-t-md', activeTab === 'history' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200']">
                 Eventos
               </button>
-              <!-- ========= INICIO DEL CAMBIO: NUEVA PESTAÑA DE HISTORIAL PDF ========= -->
               <button @click="activeTab = 'pdfHistory'" :class="['py-2 px-3 text-sm font-semibold rounded-t-md', activeTab === 'pdfHistory' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200']">
                 Historial PDF
               </button>
-              <!-- ========= FIN DEL CAMBIO ========= -->
             </div>
           </div>
 
@@ -136,7 +134,7 @@
               </ul>
             </div>
             
-            <!-- ========= INICIO DEL CAMBIO: CONTENIDO DE LA NUEVA PESTAÑA DE HISTORIAL PDF ========= -->
+            <!-- Pestaña de Historial PDF -->
             <div v-show="activeTab === 'pdfHistory' && !isEditing">
               <div v-if="pdfHistoryLoading" class="text-center text-slate-500 py-8">Cargando historial...</div>
               <div v-else-if="pdfHistoryError" class="text-center text-red-500 py-8">{{ pdfHistoryError }}</div>
@@ -151,7 +149,6 @@
               </ul>
               <div v-else class="text-center text-slate-500 py-8">Aún no se ha generado ningún PDF.</div>
             </div>
-            <!-- ========= FIN DEL CAMBIO ========= -->
           </div>
 
           <!-- Pie del Modal -->
@@ -179,8 +176,6 @@
       </div>
     </Transition>
 
-    <!-- ========= INICIO DEL CAMBIO: PASAMOS LA VERSIÓN AL COMPONENTE PDF ========= -->
-    <!-- Se añade la prop 'pdf-version' para pasar el número de versión al template del PDF -->
     <div v-if="formData" :class="isGeneratingPdf ? 'fixed top-0 -left-[9999px]' : 'hidden'">
       <ReportPDF 
         :reporte="formData" 
@@ -188,7 +183,6 @@
         :pdf-version="currentPdfVersion"
         ref="pdfComponentRef" />
     </div>
-    <!-- ========= FIN DEL CAMBIO ========= -->
   </div>
 </template>
 
@@ -213,13 +207,11 @@ const isEditing = ref(false);
 const isSaving = ref(false);
 const formData = ref(null);
 
-// ========= INICIO DEL CAMBIO: LÓGICA PARA HISTORIAL DE PDF =========
 const pdfHistory = ref([]);
 const pdfHistoryLoading = ref(false);
 const pdfHistoryError = ref(null);
-const currentPdfVersion = ref(null); // Almacena la versión del PDF actual para pasarla como prop.
+const currentPdfVersion = ref(null);
 
-// Función para cargar el historial de PDFs desde la nueva tabla 'pdf_generation_log'.
 const fetchPdfHistory = async () => {
   if (!props.reporte?.id) return;
   pdfHistoryLoading.value = true;
@@ -229,7 +221,7 @@ const fetchPdfHistory = async () => {
       .from('pdf_generation_log')
       .select('id, version, generated_at, generated_by')
       .eq('reporte_id', props.reporte.id)
-      .order('version', { ascending: false }); // Muestra la versión más reciente primero.
+      .order('version', { ascending: false });
     
     if (error) throw error;
     pdfHistory.value = data;
@@ -240,12 +232,9 @@ const fetchPdfHistory = async () => {
     pdfHistoryLoading.value = false;
   }
 };
-// ========= FIN DEL CAMBIO =========
-
 
 watch(() => props.show, (isVisible) => {
   if (isVisible) {
-    // Cuando el drawer se abre, reseteamos el estado y cargamos el historial de PDF.
     activeTab.value = 'details';
     pdfHistory.value = [];
     currentPdfVersion.value = null;
@@ -276,13 +265,28 @@ const cancelEdit = () => {
   }
 };
 
+// ========= INICIO DE LA CORRECCIÓN =========
 const saveChanges = async () => {
   if (!formData.value) return;
   isSaving.value = true;
   try {
-    const { id, created_at, token, url_firma, instrumentadores, ...updateData } = formData.value;
-    const { error } = await supabase.from('reportes').update(updateData).eq('id', id);
+    // 1. Creamos una copia limpia del objeto de datos.
+    const updateData = { ...formData.value };
+
+    // 2. Eliminamos las propiedades que no existen en la tabla 'reportes'.
+    // Esto evita que el cliente de Supabase intente actualizar columnas inexistentes.
+    delete updateData.total_count; // La columna virtual de la RPC.
+    delete updateData.short_links; // El objeto de la relación que a veces se incluye.
+
+    // 3. El resto de la lógica de desestructuración que ya tenías es correcta
+    // para evitar enviar 'id' y otras propiedades en el cuerpo del UPDATE.
+    const { id, created_at, token, url_firma, instrumentadores, ...finalUpdateData } = updateData;
+
+    // 4. Realizamos el update solo con los datos limpios.
+    const { error } = await supabase.from('reportes').update(finalUpdateData).eq('id', id);
+    
     if (error) throw error;
+    
     toast.success('Reporte actualizado con éxito.');
     emit('updated');
     close();
@@ -292,6 +296,7 @@ const saveChanges = async () => {
     isSaving.value = false;
   }
 };
+// ========= FIN DE LA CORRECCIÓN =========
 
 const timelineEvents = computed(() => {
   if (!props.reporte) return [];
@@ -310,18 +315,14 @@ const generatePDF = async () => {
   isGeneratingPdf.value = true;
 
   try {
-    // ========= INICIO DEL CAMBIO: LLAMADA A LA FUNCIÓN RPC =========
-    // Paso 1: Llamar a la función RPC para registrar la generación y obtener la nueva versión.
     const { data: version, error: rpcError } = await supabase.rpc('log_pdf_generation', {
       p_reporte_id: props.reporte.id
     });
 
     if (rpcError) throw rpcError;
 
-    // Paso 2: Guardar la versión para pasarla al componente PDF y actualizar el historial.
     currentPdfVersion.value = version;
     toast.success(`Generando PDF Versión ${version}...`);
-    // ========= FIN DEL CAMBIO =========
 
     await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -338,10 +339,8 @@ const generatePDF = async () => {
     
     pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight);
     
-    // Nombramos el archivo PDF incluyendo el número de versión.
     pdf.save(`Reporte-${props.reporte.id_cirugia || props.reporte.id}-V${version}.pdf`);
     
-    // Después de generar, refrescamos la lista del historial para que se vea el nuevo registro.
     fetchPdfHistory();
 
   } catch (error) {
@@ -351,7 +350,6 @@ const generatePDF = async () => {
     isGeneratingPdf.value = false;
   }
 };
-
 
 const downloadSignature = () => {
   if (!formData.value?.url_firma) return;
