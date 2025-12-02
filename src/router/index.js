@@ -18,6 +18,11 @@ import ReclamoView from '../views/ReclamoView.vue';
 import QuejasView from '../views/QuejasView.vue';
 import PedidosEspecialesView from '../views/PedidosEspecialesView.vue';
 
+// ========= INICIO DE LA MEJORA =========
+// 1. Importamos el nuevo componente de vista que vamos a crear.
+import ActivitySummaryView from '../views/ActivitySummaryView.vue';
+// ========= FIN DE LA MEJORA =========
+
 const routes = [
   // Rutas públicas (no usan AdminLayout)
   {
@@ -31,21 +36,30 @@ const routes = [
     component: FichaView,
     props: true
   },
-  // ========= INICIO DE LA SOLUCIÓN: AÑADIR LA RUTA PARA LINKS CORTOS =========
-  // Esta nueva ruta captura las URLs con el formato /f/codigo.
-  // Dirige al mismo componente FichaView, pasándole el short_code como prop.
   {
     path: '/f/:short_code',
     name: 'FichaCorta',
     component: FichaView,
     props: true
   },
-  // ========= FIN DE LA SOLUCIÓN =========
   {
     path: '/reclamo',
     name: 'Reclamo',
     component: ReclamoView
   },
+
+  // ========= INICIO DE LA MEJORA =========
+  // 2. Añadimos la nueva ruta para el resumen de actividad.
+  // Es una ruta pública porque el acceso está protegido por el token en la URL.
+  {
+    // La ruta será, por ejemplo, /resumen/a1b2c3d4e5f6a7b8
+    path: '/resumen/:token',
+    name: 'ActivitySummary',
+    component: ActivitySummaryView,
+    // 'props: true' pasa el parámetro ':token' como una prop al componente.
+    props: true,
+  },
+  // ========= FIN DE LA MEJORA =========
 
   // Rutas protegidas que usan AdminLayout
   {
@@ -60,7 +74,7 @@ const routes = [
       { path: 'incidencias', name: 'Incidencias', component: IncidenciasView },
       { path: 'ranking', name: 'Ranking', component: RankingView },
       { path: 'quejas', name: 'Quejas', component: QuejasView },
-      { path: 'pedidos-especiales', name: 'PedidosEspeciales', component: PedidosEspecialesView }
+      { path: 'pedidos-specials', name: 'PedidosEspeciales', component: PedidosEspecialesView }
     ]
   }
 ];

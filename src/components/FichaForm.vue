@@ -1,4 +1,4 @@
-<!-- src/components/FichaForm.vue -->
+<!-- src/components/FichaForm.vue (Diagnóstico Final) -->
 <template>
   <div class="w-full">
     <!-- Contenedor Principal para la Interfaz Superior -->
@@ -50,12 +50,11 @@
         <Transition name="fade-slide" mode="out-in">
           <component 
             :is="steps[currentStep].component"
-            :form-data="formData"
+            v-bind="currentStepProps"
             @update:form-data="updateFormData"
-            :errors="errors"
-            :signature-preview-url="signaturePreviewUrl"
-            @open-signature-modal="openSignatureModal"
             @set-footer-action="setFooterAction"
+            @open-signature-modal="openSignatureModal"
+            @clear-signature="handleSignatureClear"
           />
         </Transition>
       </div>
@@ -75,14 +74,19 @@
       </div>
     </footer>
 
-    <SignatureModal :show="isSignatureModalVisible" @close="closeSignatureModal" @save="handleSignatureSave" @clear="handleSignatureClear" />
+    <SignatureModal 
+      :show="isSignatureModalVisible" 
+      @close="closeSignatureModal" 
+      @save="handleSignatureSave" 
+      @clear="handleSignatureClear" 
+    />
   </div>
 </template>
 
 
 <script setup>
 import { ref, reactive, computed, onUnmounted, markRaw, watchEffect, defineComponent, h } from 'vue';
-import { useStorage, usePreferredDark } from '@vueuse/core';
+import { useStorage } from '@vueuse/core';
 import { supabase } from '../services/supabase.js';
 import { useToast } from 'vue-toastification';
 import SignatureModal from './SignatureModal.vue';
@@ -99,7 +103,6 @@ const emit = defineEmits(['submit-success']);
 
 const toast = useToast();
 
-const prefersDark = usePreferredDark();
 const isDark = useStorage('iq-dark-mode', true);
 watchEffect(() => {
   document.documentElement.classList.toggle('dark', isDark.value);
@@ -137,6 +140,22 @@ const signatureBlob = ref(null);
 const signaturePreviewUrl = ref(null);
 const isSignatureModalVisible = ref(false);
 
+const currentStepProps = computed(() => {
+  const commonProps = {
+    formData: formData,
+    errors: errors,
+  };
+
+  if (currentStep.value === 2) {
+    return {
+      ...commonProps,
+      signaturePreviewUrl: signaturePreviewUrl.value,
+    };
+  }
+
+  return commonProps;
+});
+
 const updateFormData = (payload) => {
   Object.assign(formData, payload);
 };
@@ -146,12 +165,15 @@ const prevStep = () => { if (currentStep.value > 0) currentStep.value--; };
 
 const validateForm = () => {
   Object.keys(errors).forEach(key => delete errors[key]);
+  
   if (formData.set_completo === null) errors.set_completo = 'Este campo es requerido.';
-  if (formData.set_completo === false && formData.informe_faltante === null) errors.informe_faltante = 'Este campo es requerido.';
+  if (formData.set_completo === false && !formData.informe_faltante) errors.informe_faltante = 'Este campo es requerido.';
   const ratingKeys = ['rating_puntualidad', 'rating_condiciones', 'rating_asesoramiento', 'rating_evaluacion_general'];
   ratingKeys.forEach(key => { if (!formData[key] || formData[key] === 0) errors[key] = 'Debe seleccionar una puntuación.'; });
+  
   if (!formData.consumo_realizado.trim()) errors.consumo_realizado = 'El consumo realizado es un campo requerido.';
   if (!formData.tipo_logistica) errors.tipo_logistica = 'Debe seleccionar una opción de logística.';
+  
   if (!signatureBlob.value) errors.signature = 'La firma es requerida.';
   if (!formData.acepta_terminos) errors.acepta_terminos = 'Debe aceptar los términos para continuar.';
   
@@ -162,13 +184,32 @@ const validateForm = () => {
   return true;
 };
 
+const findFirstInvalidStep = () => {
+  const errorKeys = Object.keys(errors);
+  const step1ErrorKeys = ['set_completo', 'informe_faltante', 'rating_puntualidad', 'rating_condiciones', 'rating_asesoramiento', 'rating_evaluacion_general'];
+  const step2ErrorKeys = ['consumo_realizado', 'tipo_logistica'];
+  
+  if (errorKeys.some(key => step1ErrorKeys.includes(key))) return 0;
+  if (errorKeys.some(key => step2ErrorKeys.includes(key))) return 1;
+  
+  return 2; // Si no es el 1 o el 2, por descarte es el 3.
+};
+
+// ========= INICIO DE LA PRUEBA FINAL =========
 const handleSubmit = async () => {
+  // Este es el log más importante. Nos mostrará el estado EXACTO antes de validar.
+  console.log('--- PRE-VALIDATION STATE ---');
+  console.log('Form Data:', JSON.parse(JSON.stringify(formData)));
+  console.log('Signature Blob:', signatureBlob.value);
+  console.log('--------------------------');
+
   if (!validateForm()) {
-    if (errors.set_completo || errors.rating_puntualidad) currentStep.value = 0;
-    else if (errors.consumo_realizado || errors.tipo_logistica) currentStep.value = 1;
-    else currentStep.value = 2;
+    console.error('Validation FAILED. Errors found:', JSON.parse(JSON.stringify(errors)));
+    currentStep.value = findFirstInvalidStep();
     return;
   }
+  
+  console.log('Validation PASSED. Submitting...');
   isSubmitting.value = true;
   try {
     const filePath = `firma-${props.reporte.id}-${Date.now()}.webp`;
@@ -191,21 +232,31 @@ const handleSubmit = async () => {
     
     emit('submit-success');
   } catch (error) {
-    console.error('Error al enviar la ficha:', error);
+    console.error('Submission failed with error:', error);
     toast.error(`Error al enviar el formulario: ${error.message}`);
   } finally {
     isSubmitting.value = false;
   }
 };
+// ========= FIN DE LA PRUEBA FINAL =========
 
-const openSignatureModal = () => { isSignatureModalVisible.value = true; };
-const closeSignatureModal = () => { isSignatureModalVisible.value = false; };
+const openSignatureModal = () => {
+  console.log('[FichaForm] Received "open-signature-modal" event! Opening modal...');
+  isSignatureModalVisible.value = true;
+};
+
+const closeSignatureModal = () => {
+  isSignatureModalVisible.value = false;
+};
+
+
 const handleSignatureSave = (blob) => {
   signatureBlob.value = blob;
   if (signaturePreviewUrl.value) URL.revokeObjectURL(signaturePreviewUrl.value);
   signaturePreviewUrl.value = URL.createObjectURL(blob);
   closeSignatureModal();
 };
+
 const handleSignatureClear = () => {
   signatureBlob.value = null;
   if (signaturePreviewUrl.value) {
@@ -241,7 +292,6 @@ const setFooterAction = (action) => {
 watchEffect(() => setFooterAction(null));
 
 const InfoCard = defineComponent({
-  // --- CORRECCIÓN: La prop 'icon' ahora puede ser un Objeto o una Función ---
   props: { label: String, value: String, icon: [Object, Function] },
   setup(props) {
     const iconComponent = props.icon ? h(props.icon, { class: 'h-5 w-5 text-slate-400 dark:text-slate-500 flex-shrink-0' }) : null;

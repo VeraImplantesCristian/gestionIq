@@ -1,4 +1,3 @@
-<!-- src/views/FichaView.vue -->
 <template>
   <div class="min-h-screen w-full bg-slate-900 flex flex-col items-center justify-center p-4 sm:p-8">
     <div class="w-full max-w-4xl">
@@ -17,9 +16,14 @@
           <button @click="retryFetch" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Reintentar</button>
         </div>
         
-        <SubmissionSuccess v-else-if="viewState === 'submitted'" :paciente-nombre="reporte.paciente" @view-summary="viewState = 'summary_display'"/>
-        <SubmittedSummary v-else-if="viewState === 'summary_display'" :reporte="reporte" />
+        <SubmissionSuccess 
+          v-else-if="viewState === 'submitted'" 
+          :paciente-nombre="reporte.paciente"
+          :activity-token="activityToken"
+        />
+
         <IdentificationWizard v-else-if="viewState === 'identification'" @identification-complete="handleIdentificationComplete" @request-update="requestUpdate"/>
+        
         <FichaForm v-else-if="viewState === 'form_display' && reporte && instrumentador" :reporte="reporte" :instrumentador="instrumentador" @submit-success="handleSuccess" />
         
       </Transition>
@@ -33,23 +37,18 @@ import { supabase } from '../services/supabase.js';
 import IdentificationWizard from '../components/IdentificationWizard.vue';
 import FichaForm from '../components/FichaForm.vue';
 import SubmissionSuccess from '../components/SubmissionSuccess.vue';
-import SubmittedSummary from '../components/SubmittedSummary.vue';
 
-// ========= INICIO DE LA SOLUCIÓN: ACEPTAR AMBOS TIPOS DE PARÁMETROS =========
 const props = defineProps({ 
-  // El token largo del formato antiguo (opcional).
   token: { type: String, default: null },
-  // El código corto del nuevo formato (opcional).
   short_code: { type: String, default: null }
 });
-// ========= FIN DE LA SOLUCIÓN =========
 
 const viewState = ref('loading');
 const reporte = ref(null);
 const error = ref(null);
 const instrumentador = ref(null);
+const activityToken = ref(null);
 
-// ========= INICIO DE LA SOLUCIÓN: LÓGICA DE CARGA "BILINGÜE" =========
 const fetchReporte = async () => {
   viewState.value = 'loading';
   error.value = null;
@@ -58,8 +57,6 @@ const fetchReporte = async () => {
     let reporteData;
 
     if (props.short_code) {
-      // Flujo Nuevo: Link Corto
-      // 1. Traducir el short_code a reporte_id.
       const { data: linkData, error: linkError } = await supabase
         .from('short_links')
         .select('reporte_id')
@@ -70,7 +67,6 @@ const fetchReporte = async () => {
         throw new Error("El enlace corto no es válido o ha expirado.");
       }
 
-      // 2. Buscar el reporte usando el reporte_id obtenido.
       const { data, error: fetchError } = await supabase
         .from('reportes')
         .select('*')
@@ -81,7 +77,6 @@ const fetchReporte = async () => {
       reporteData = data;
 
     } else if (props.token) {
-      // Flujo Antiguo: Token Largo (se mantiene la lógica original)
       const { data, error: fetchError } = await supabase
         .from('reportes')
         .select('*')
@@ -94,14 +89,25 @@ const fetchReporte = async () => {
       }
       reporteData = data;
     } else {
-      // Si no se proporciona ni token ni short_code.
       throw new Error("Enlace inválido. No se proporcionó un identificador.");
     }
 
     reporte.value = reporteData;
     
-    // La lógica de estados se mantiene igual una vez que tenemos los datos del reporte.
     if (reporteData.estado === 'Enviado') {
+      // Si la ficha ya fue enviada, intentamos generar un token para que el usuario
+      // pueda acceder a su historial de todos modos.
+      if (reporteData.instrumentador_dni) {
+        // Usamos un try/catch separado para que un fallo aquí no rompa la vista.
+        try {
+          const { data: token } = await supabase.rpc('create_instrumentador_token', {
+            p_instrumentador_dni: reporteData.instrumentador_dni
+          });
+          if (token) activityToken.value = token;
+        } catch (e) {
+          console.error("No se pudo generar el token para la ficha ya enviada:", e.message);
+        }
+      }
       viewState.value = 'submitted';
     } else {
       const cachedInstrumentador = sessionStorage.getItem('iq_instrumentador');
@@ -117,7 +123,6 @@ const fetchReporte = async () => {
     viewState.value = 'error';
   }
 };
-// ========= FIN DE LA SOLUCIÓN =========
 
 const handleIdentificationComplete = (identifiedInstrumentador) => {
   instrumentador.value = identifiedInstrumentador;
@@ -125,8 +130,28 @@ const handleIdentificationComplete = (identifiedInstrumentador) => {
   viewState.value = 'form_display';
 };
 
-const handleSuccess = () => {
+const handleSuccess = async () => {
   sessionStorage.removeItem('iq_instrumentador');
+  
+  // La lógica de generación de token ahora está dentro de un try/catch.
+  // Si falla, simplemente se loguea el error y la app continúa.
+  try {
+    const { data: token, error: tokenError } = await supabase.rpc('create_instrumentador_token', {
+      p_instrumentador_dni: instrumentador.value.dni
+    });
+
+    if (tokenError) throw tokenError;
+    
+    activityToken.value = token;
+    
+  } catch (err) {
+    console.error("Error al crear el token de actividad:", err.message);
+    // No hacemos nada más, activityToken se quedará en null.
+    // El v-if en SubmissionSuccess se encargará de no mostrar un enlace roto.
+  }
+  
+  // El cambio de vista ocurre fuera del try/catch, asegurando que el usuario
+  // siempre vea la pantalla de éxito, incluso si la generación del token falla.
   viewState.value = 'submitted';
 };
 
@@ -138,7 +163,6 @@ const requestUpdate = () => {
   window.open('https://wa.me/543794316450', '_blank');
 };
 
-// Se ejecuta una sola vez cuando el componente se monta.
 onMounted(() => {
   sessionStorage.removeItem('iq_instrumentador');
   fetchReporte();

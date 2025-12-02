@@ -2,26 +2,24 @@
 <template>
   <Transition name="fade">
     <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <!-- Overlay -->
       <div @click="$emit('close')" class="fixed inset-0 bg-black bg-opacity-70"></div>
       
-      <!-- Contenedor del Modal -->
-      <div class="relative z-10 w-full max-w-2xl bg-white dark:bg-slate-800 rounded-lg shadow-xl flex flex-col max-h-[90vh]">
+      <!-- ========= INICIO DE LA SOLUCIÓN: AJUSTE ESTRUCTURAL DEL MODAL ========= -->
+      <!-- Se elimina 'flex-col' para que la altura se ajuste al contenido -->
+      <div class="relative z-10 w-full max-w-2xl bg-white dark:bg-slate-800 rounded-lg shadow-xl max-h-[90vh]">
         
-        <!-- Cabecera -->
-        <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700">
           <h3 class="text-xl font-semibold text-slate-900 dark:text-slate-100">
             {{ isEditing ? 'Editar Pedido Especial' : 'Nuevo Pedido Especial' }}
           </h3>
         </div>
 
-        <!-- Cuerpo del Modal -->
-        <div class="flex-grow overflow-y-auto">
+        <!-- Se añade un div contenedor para el scroll principal -->
+        <div class="overflow-y-auto">
           <div class="p-6">
-            <!-- Paso 1: Búsqueda -->
             <div v-if="step === 'selecting' && !isEditing" class="min-h-[200px]">
               <h4 class="font-semibold mb-2 dark:text-slate-200">Asociar a una Cirugía</h4>
-              <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Busque por paciente o ID para autocompletar.</p>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Busque por nombre de paciente o ID de cirugía para autocompletar.</p>
               
               <AutocompleteSearch 
                 v-model="searchTerm"
@@ -42,28 +40,18 @@
               </div>
             </div>
 
-            <!-- Paso 2: Formulario -->
             <div v-if="step === 'filling'" class="space-y-4">
               <div>
                 <label for="nombre_medico" class="form-label">Nombre del Médico <span class="text-red-500">*</span></label>
-                <input type="text" id="nombre_medico" v-model="formData.nombre_medico" :class="['form-input mt-1', {'border-red-500 focus:border-red-500 focus:ring-red-500': errors.nombre_medico}]" :readonly="!!formData.reporte_asociado_id"/>
+                <input type="text" id="nombre_medico" v-model="formData.nombre_medico" class="form-input mt-1" :readonly="!!formData.reporte_asociado_id"/>
                 <p v-if="errors.nombre_medico" class="form-error">{{ errors.nombre_medico }}</p>
               </div>
-
-              <!-- ========= INICIO DE LA SOLUCIÓN: CAMPO DE PATOLOGÍA EDITABLE ========= -->
-              <div v-if="formData.reporte_asociado_id">
-                <label for="tipo_cirugia" class="form-label">Patología (Tipo de Cirugía)</label>
-                <!-- Se elimina 'readonly' y se añade 'v-model' para permitir la edición. -->
-                <input type="text" id="tipo_cirugia" v-model="formData.tipo_cirugia" class="form-input mt-1" />
-              </div>
-              <!-- ========= FIN DE LA SOLUCIÓN ========= -->
-
               <div>
                 <label for="descripcion_pedido" class="form-label">Descripción del Pedido <span class="text-red-500">*</span></label>
-                <textarea id="descripcion_pedido" v-model="formData.descripcion_pedido" rows="8" :class="['form-input mt-1 whitespace-pre-wrap', {'border-red-500 focus:border-red-500 focus:ring-red-500': errors.descripcion_pedido}]"></textarea>
+                <!-- Se añade la clase 'whitespace-pre-wrap' para el formato correcto -->
+                <textarea id="descripcion_pedido" v-model="formData.descripcion_pedido" rows="8" class="form-input mt-1 whitespace-pre-wrap"></textarea>
                 <p v-if="errors.descripcion_pedido" class="form-error">{{ errors.descripcion_pedido }}</p>
               </div>
-
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div>
                   <label for="estado_autorizacion" class="form-label">Estado de Autorización</label>
@@ -89,15 +77,16 @@
           </div>
         </div>
 
-        <!-- Pie del Modal -->
-        <div class="p-4 bg-slate-50 dark:bg-slate-800/50 border-t flex justify-end items-center space-x-3 flex-shrink-0">
+        <div class="p-4 bg-slate-50 dark:bg-slate-800/50 border-t flex justify-end items-center space-x-3">
           <button @click="$emit('close')" class="btn-secondary">Cancelar</button>
-          <button @click="handleSave" :disabled="isSaving || (step === 'selecting' && !isEditing)" class="btn-primary flex items-center">
+          <!-- El botón Guardar ahora está deshabilitado si estamos en el paso de selección -->
+          <button @click="handleSave" :disabled="isSaving || step === 'selecting'" class="btn-primary flex items-center">
             <svg v-if="isSaving" class="animate-spin -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
             <span>{{ isSaving ? 'Guardando...' : 'Guardar Pedido' }}</span>
           </button>
         </div>
       </div>
+      <!-- ========= FIN DE LA SOLUCIÓN ========= -->
     </div>
   </Transition>
 </template>
@@ -128,7 +117,6 @@ const resetForm = () => {
   formData.value = {
     nombre_medico: '',
     reporte_asociado_id: null,
-    tipo_cirugia: null,
     descripcion_pedido: '',
     estado_autorizacion: 'Cubierto por Districorr',
     estado_autorizacion_otro: '',
@@ -141,11 +129,7 @@ const resetForm = () => {
 watch(() => props.show, (isVisible) => {
   if (isVisible) {
     if (props.pedido) {
-      formData.value = {
-        ...JSON.parse(JSON.stringify(props.pedido)),
-        tipo_cirugia: props.pedido.tipo_cirugia || null
-      };
-      
+      formData.value = JSON.parse(JSON.stringify(props.pedido));
       if (formData.value.estado_autorizacion !== 'Cubierto por Districorr') {
         formData.value.estado_autorizacion_otro = formData.value.estado_autorizacion;
         formData.value.estado_autorizacion = 'Otro';
@@ -176,16 +160,17 @@ const handleReporteSelected = (reporte) => {
   formData.value.reporte_asociado_id = reporte.reporte_id;
   formData.value.nombre_medico = reporte.medico;
   formData.value.descripcion_pedido = reporte.descripcion_sugerida;
-  formData.value.tipo_cirugia = reporte.tipo_cirugia;
   step.value = 'filling';
 };
 
-const skipToForm = () => { step.value = 'filling'; };
+const skipToForm = () => {
+  step.value = 'filling';
+};
 
 const validateForm = () => {
   Object.keys(errors).forEach(key => delete errors[key]);
-  if (!formData.value.nombre_medico?.trim()) errors.nombre_medico = 'El nombre del médico es obligatorio.';
-  if (!formData.value.descripcion_pedido?.trim()) errors.descripcion_pedido = 'La descripción del pedido es obligatoria.';
+  if (!formData.value.nombre_medico?.trim()) errors.nombre_medico = 'El nombre es obligatorio.';
+  if (!formData.value.descripcion_pedido?.trim()) errors.descripcion_pedido = 'La descripción es obligatoria.';
   return Object.keys(errors).length === 0;
 };
 
@@ -200,8 +185,6 @@ const handleSave = () => {
     finalData.estado_autorizacion = finalData.estado_autorizacion_otro;
   }
   delete finalData.estado_autorizacion_otro;
-
-  finalData.costo_estimado = Number(finalData.costo_estimado) || null;
 
   emit('save', finalData);
 };

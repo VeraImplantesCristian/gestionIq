@@ -1,4 +1,4 @@
-<!-- src/views/InstrumentadoresView.vue (VERSIÓN FINAL DEFINITIVA) -->
+<!-- src/views/InstrumentadoresView.vue -->
 <template>
   <div class="p-4 sm:p-6 lg:p-8">
     <!-- Barra de Búsqueda -->
@@ -58,9 +58,22 @@
               <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-center" :class="getPromedioColor(iq.promedio_puntaje_iq, 5)">
                 {{ iq.promedio_puntaje_iq.toFixed(2) }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4 text-center">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 text-center">
+                <!-- ========= INICIO DE LA MEJORA ========= -->
+                <!-- 1. Se agrupan los botones de enlace en un div para mejor espaciado. -->
+                <div class="inline-flex items-center rounded-md shadow-sm bg-slate-100 dark:bg-slate-700/50 p-0.5">
+                  <!-- Botón para enlace corto (3 días) -->
+                  <button @click="copyActivityLink(iq.dni, 3)" title="Copiar enlace temporal (3 días)" class="action-button">
+                    <LinkIcon class="h-5 w-5" />
+                  </button>
+                  <!-- Botón para enlace largo (30 días) -->
+                  <button @click="copyActivityLink(iq.dni, 30)" title="Copiar enlace permanente (30 días)" class="action-button">
+                    <CalendarDaysIcon class="h-5 w-5" />
+                  </button>
+                </div>
                 <button @click="openWeeklyScoreModal(iq)" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300">Valorar</button>
                 <button @click="openEditModal(iq)" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Editar</button>
+                <!-- ========= FIN DE LA MEJORA ========= -->
               </td>
             </tr>
           </tbody>
@@ -88,7 +101,6 @@ import { ref, onMounted, onUnmounted, inject, h, markRaw, computed } from 'vue';
 import { supabase } from '../services/supabase.js';
 import { useToast } from 'vue-toastification';
 
-// Importación de componentes hijos
 import SkeletonLoader from '../components/SkeletonLoader.vue';
 import EditInstrumentadorModal from '../components/EditInstrumentadorModal.vue';
 import RecordWeeklyScoreModal from '../components/RecordWeeklyScoreModal.vue';
@@ -96,7 +108,11 @@ import NewInstrumentadorModal from '../components/NewInstrumentadorModal.vue';
 import ImportInstrumentadoresModal from '../components/ImportInstrumentadoresModal.vue';
 import PaginationControls from '../components/PaginationControls.vue';
 
-// Lógica para la cabecera dinámica del AdminLayout
+// ========= INICIO DE LA MEJORA =========
+// 2. Importamos los nuevos íconos.
+import { LinkIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline';
+// ========= FIN DE LA MEJORA =========
+
 const headerConfig = inject('header-config');
 const isNewModalOpen = ref(false);
 const isImportModalOpen = ref(false);
@@ -114,7 +130,6 @@ onMounted(() => {
 });
 onUnmounted(() => { headerConfig.value = { title: '', buttons: [] }; });
 
-// Definición del estado reactivo del componente
 const toast = useToast();
 const instrumentadores = ref([]);
 const loading = ref(true);
@@ -128,13 +143,11 @@ const sortDirection = ref('asc');
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
 
-// Función de utilidad para capitalizar nombres
 const capitalizeName = (name) => {
   if (!name) return '';
   return name.replace(/\b\w/g, char => char.toUpperCase());
 };
 
-// Propiedades computadas para manejar la lógica de UI (filtrado, ordenación, paginación)
 const filteredInstrumentadores = computed(() => {
   if (!searchTerm.value) return instrumentadores.value;
   const term = searchTerm.value.toLowerCase();
@@ -169,7 +182,6 @@ const paginatedInstrumentadores = computed(() => {
 
 const totalItems = computed(() => sortedInstrumentadores.value.length);
 
-// Métodos para interactuar con la UI
 const sortBy = (key) => {
   if (sortKey.value === key) {
     sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
@@ -184,12 +196,10 @@ const goToPage = (page) => {
   currentPage.value = page;
 };
 
-// Función principal para obtener los datos desde Supabase
 const fetchInstrumentadores = async () => {
   loading.value = true;
   error.value = null;
   try {
-    // Llamada a la RPC simplificada, sin parámetros de caché
     const { data, error: fetchError } = await supabase.rpc('get_instrumentadores_con_stats');
     if (fetchError) throw fetchError;
     instrumentadores.value = data;
@@ -203,7 +213,6 @@ const fetchInstrumentadores = async () => {
 
 onMounted(fetchInstrumentadores);
 
-// Función de utilidad para colorear los promedios
 const getPromedioColor = (promedio, escala) => {
   const p = (promedio / escala) * 100;
   if (p >= 90) return 'text-green-500 dark:text-green-400';
@@ -213,7 +222,6 @@ const getPromedioColor = (promedio, escala) => {
   return 'text-gray-500 dark:text-gray-400';
 };
 
-// Métodos para abrir los modales de acción
 const openEditModal = (instrumentador) => {
   selectedInstrumentador.value = instrumentador;
   isEditModalOpen.value = true;
@@ -224,11 +232,40 @@ const openWeeklyScoreModal = (instrumentador) => {
   isWeeklyScoreModalOpen.value = true;
 };
 
-// Método para refrescar los datos después de una acción en un modal
 const handleUpdate = () => {
   fetchInstrumentadores();
   toast.success('Lista de instrumentadores actualizada.');
 };
+
+// ========= INICIO DE LA MEJORA =========
+// 3. La función ahora acepta la duración del token como parámetro.
+const copyActivityLink = async (dni, days) => {
+  try {
+    const loadingToast = toast.info(`Generando enlace de ${days} días...`, { timeout: false });
+
+    // Llamamos a la RPC pasándole ambos parámetros.
+    const { data: token, error: rpcError } = await supabase.rpc('create_instrumentador_token', {
+      p_instrumentador_dni: dni,
+      p_dias_validez: days
+    });
+
+    if (rpcError) throw rpcError;
+    if (!token) throw new Error('No se pudo generar el token.');
+
+    const url = `${window.location.origin}/resumen/${token}`;
+    await navigator.clipboard.writeText(url);
+
+    toast.update(loadingToast, { 
+      content: `¡Enlace de ${days} días copiado!`, 
+      options: { type: 'success', timeout: 3000 } 
+    });
+
+  } catch (err) {
+    console.error('Error al copiar el enlace de actividad:', err);
+    toast.error(`No se pudo copiar el enlace: ${err.message}`);
+  }
+};
+// ========= FIN DE LA MEJORA =========
 </script>
 
 <style scoped>
@@ -240,5 +277,9 @@ const handleUpdate = () => {
 }
 .active-sort {
   @apply bg-gray-100 dark:bg-slate-600;
+}
+/* 4. Nuevo estilo para el grupo de botones de acción. */
+.action-button {
+  @apply p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md transition-colors;
 }
 </style>

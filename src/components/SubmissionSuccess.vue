@@ -21,14 +21,20 @@
           Gracias por tu compromiso. Tu ficha fue registrada en nuestro sistema.
         </p>
 
-        <button 
-          @click="$emit('view-summary')"
-          class="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-        >
-          Chequea lo que cargaste acá
-        </button>
+        <!-- Enlace al Resumen de Actividad -->
+        <div v-if="activityToken" class="text-center">
+          <router-link
+            :to="{ name: 'ActivitySummary', params: { token: activityToken } }"
+            class="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Accedé a tu Resumen de Actividad
+          </router-link>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            (Este enlace es personal y válido por 72 hs)
+          </p>
+        </div>
 
-        <!-- === GUÍA DE SIGUIENTES PASOS === -->
+        <!-- Guía de Siguientes Pasos -->
         <div class="w-full text-left space-y-4 mt-5 border-t border-slate-200 dark:border-slate-700 pt-6">
           
           <!-- Paso 1: Alerta Roja (Stickers) -->
@@ -69,6 +75,20 @@
               </div>
             </div>
           </div>
+          
+          <!-- Bloque de Información de Pago -->
+          <div class="p-4 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500">
+            <div class="flex items-start gap-3">
+              <BanknotesIcon class="w-6 h-6 text-green-500 shrink-0" />
+              <div>
+                <h3 class="font-bold text-green-800 dark:text-green-300">Información de Pago</h3>
+                <p class="text-sm text-green-700 dark:text-green-200 mt-1">
+                  Tu pago se procesará dentro de los <strong>7 días hábiles</strong> siguientes a la recepción y control del material en nuestro depósito. ¡Gracias por tu excelente trabajo!
+                </p>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- Botón de WhatsApp -->
@@ -90,12 +110,12 @@
 
 <script setup>
 import { computed } from 'vue';
+import { BanknotesIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-  pacienteNombre: { type: String, required: true }
+  pacienteNombre: { type: String, required: true },
+  activityToken: { type: String, default: null }
 });
-
-defineEmits(['view-summary']);
 
 const whatsappUrl = computed(() => {
   const numero = '543794043788';
