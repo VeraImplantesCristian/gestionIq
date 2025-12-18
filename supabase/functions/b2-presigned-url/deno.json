@@ -1,0 +1,12 @@
+// deno.json (Versión Corregida y Funcional)
+{
+  "imports": {
+    "std/": "https://deno.land/std@0.168.0/",
+
+    // ---> ¡ESTA ES LA CORRECCIÓN CRÍTICA! <---
+    // Cambiamos "jsr:" por "npm:".
+    // Ahora Deno buscará los paquetes en el registro de NPM, que es donde realmente se encuentran.
+    "@aws-sdk/client-s3": "npm:@aws-sdk/client-s3@^3.592.0",
+    "@aws-sdk/s3-request-presigner": "npm:@aws-sdk/s3-request-presigner@^3.592.0"
+  }
+}

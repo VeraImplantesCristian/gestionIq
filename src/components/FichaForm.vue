@@ -1,4 +1,4 @@
-<!-- src/components/FichaForm.vue (Diagnóstico Final) -->
+<!-- src/components/FichaForm.vue (Modificado) -->
 <template>
   <div class="w-full">
     <!-- Contenedor Principal para la Interfaz Superior -->
@@ -185,31 +185,22 @@ const validateForm = () => {
 };
 
 const findFirstInvalidStep = () => {
-  const errorKeys = Object.keys(errors);
   const step1ErrorKeys = ['set_completo', 'informe_faltante', 'rating_puntualidad', 'rating_condiciones', 'rating_asesoramiento', 'rating_evaluacion_general'];
   const step2ErrorKeys = ['consumo_realizado', 'tipo_logistica'];
+  const errorKeys = Object.keys(errors);
   
   if (errorKeys.some(key => step1ErrorKeys.includes(key))) return 0;
   if (errorKeys.some(key => step2ErrorKeys.includes(key))) return 1;
   
-  return 2; // Si no es el 1 o el 2, por descarte es el 3.
+  return 2;
 };
 
-// ========= INICIO DE LA PRUEBA FINAL =========
 const handleSubmit = async () => {
-  // Este es el log más importante. Nos mostrará el estado EXACTO antes de validar.
-  console.log('--- PRE-VALIDATION STATE ---');
-  console.log('Form Data:', JSON.parse(JSON.stringify(formData)));
-  console.log('Signature Blob:', signatureBlob.value);
-  console.log('--------------------------');
-
   if (!validateForm()) {
-    console.error('Validation FAILED. Errors found:', JSON.parse(JSON.stringify(errors)));
     currentStep.value = findFirstInvalidStep();
     return;
   }
   
-  console.log('Validation PASSED. Submitting...');
   isSubmitting.value = true;
   try {
     const filePath = `firma-${props.reporte.id}-${Date.now()}.webp`;
@@ -230,7 +221,11 @@ const handleSubmit = async () => {
     const { error: updateError } = await supabase.from('reportes').update(updates).eq('id', props.reporte.id);
     if (updateError) throw updateError;
     
-    emit('submit-success');
+    // ***** INICIO DE LA MODIFICACIÓN *****
+    // Ahora, al emitir el evento, pasamos el ID del reporte como payload.
+    emit('submit-success', props.reporte.id);
+    // ***** FIN DE LA MODIFICACIÓN *****
+
   } catch (error) {
     console.error('Submission failed with error:', error);
     toast.error(`Error al enviar el formulario: ${error.message}`);
@@ -238,17 +233,14 @@ const handleSubmit = async () => {
     isSubmitting.value = false;
   }
 };
-// ========= FIN DE LA PRUEBA FINAL =========
 
 const openSignatureModal = () => {
-  console.log('[FichaForm] Received "open-signature-modal" event! Opening modal...');
   isSignatureModalVisible.value = true;
 };
 
 const closeSignatureModal = () => {
   isSignatureModalVisible.value = false;
 };
-
 
 const handleSignatureSave = (blob) => {
   signatureBlob.value = blob;

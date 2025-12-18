@@ -41,7 +41,7 @@
     <!-- Pie del Sidebar -->
     <div class="p-4 mt-auto border-t border-gray-200 dark:border-slate-700">
       <button @click="handleLogout" class="w-full flex items-center justify-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg">
-        <LogoutIcon class="w-5 h-5"/>
+        <component :is="LogoutIcon" class="w-5 h-5"/>
         <span>{{ loggingOut ? 'Cerrando…' : 'Cerrar sesión' }}</span>
       </button>
       <p class="mt-2 text-[11px] text-slate-400 text-center select-none">v{{ appVersion }}</p>
@@ -60,12 +60,7 @@ const props = defineProps({
   userRole: { type: String, default: 'admin' } 
 });
 
-// ========= INICIO DE LA CORRECCIÓN =========
-// Se añade 'toggle-sidebar' al array de emits.
-// También he notado que usas 'close-sidebar' en varios sitios, así que lo unifico todo a 'toggle-sidebar'
-// para mantener la consistencia, ya que es la acción que realmente hace el padre.
 const emit = defineEmits(['toggle-sidebar']);
-// ========= FIN DE LA CORRECCIÓN =========
 
 const router = useRouter();
 const route = useRoute();
@@ -82,12 +77,11 @@ const toggleSubmenu = (label) => {
 };
 
 const sideRef = ref(null);
-// He simplificado la lógica de cierre para usar siempre el mismo evento.
 const onKey = (e) => { if (e.key === 'Escape' && props.isOpen) emit('toggle-sidebar'); };
 onMounted(() => document.addEventListener('keydown', onKey));
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 
-// (El resto de las definiciones de iconos y la lógica se mantienen igual)
+// --- DEFINICIÓN DE ICONOS ---
 const PanelIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M4 6h16M4 12h16m-7 6h7' }) ]) };
 const RankingIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z' }), h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z' }) ]) };
 const StatsIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M16 8v8m-4-5v5m-4-2v2M5 20h14a2 2 0 002-2V6a2 2 0 002-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' }) ]) };
@@ -96,20 +90,56 @@ const IncidenciasIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none
 const HeartIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 21l-7.682-7.318a4.5 4.5 0 010-6.364z' }) ]) };
 const GiftIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7' }) ]) };
 const LogoutIcon = { render: () => h('svg', { class: 'w-5 h-5', fill:'none', stroke:'currentColor', viewBox:'0 0 24 24' }, [ h('path', { 'stroke-linecap':'round','stroke-linejoin':'round','stroke-width':'2', d:'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' }) ]) };
+const UploadIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' }) ]) };
+// ***** NUEVO: Icono para el menú de Logística *****
+const TruckIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z' }), h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 17H6V6h11v5l-4 4H9' }) ]) };
 
+// --- ESTRUCTURA DE NAVEGACIÓN ---
 const items = computed(() => ([
-  { label: 'Panel de Cirugías', to: '/admin', icon: PanelIcon, roles: ['admin','coord','user'] },
-  { label: 'Ranking IQ', to: '/ranking', icon: RankingIcon, roles: ['admin','coord'] },
-  { label: 'Estadísticas', to: '/estadisticas', badge: 'Nuevo', icon: StatsIcon, roles: ['admin','coord'] },
-  { label: 'Instrumentadores', to: '/instrumentadores', icon: InstrumentadoresIcon, roles: ['admin','coord','user'] },
-  { label: 'Incidencias', to: '/incidencias', icon: IncidenciasIcon, roles: ['admin','coord'] },
+  { label: 'Panel de Cirugías', to: { name: 'Admin' }, icon: PanelIcon, roles: ['admin','coord','user'] },
+  { label: 'Ranking IQ', to: { name: 'Ranking' }, icon: RankingIcon, roles: ['admin','coord'] },
+  { label: 'Estadísticas', to: { name: 'Estadisticas' }, badge: 'Nuevo', icon: StatsIcon, roles: ['admin','coord'] },
+  { label: 'Instrumentadores', to: { name: 'Instrumentadores' }, icon: InstrumentadoresIcon, roles: ['admin','coord','user'] },
+  { label: 'Incidencias', to: { name: 'Incidencias' }, icon: IncidenciasIcon, roles: ['admin','coord'] },
   {
     label: 'Área Médicos',
     icon: HeartIcon,
     roles: ['admin', 'coord'],
     children: [
-      { label: 'Gestión de Reclamos', to: '/quejas', icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24'}, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' }) ]) } },
-      { label: 'Pedidos Especiales', to: '/pedidos-especiales', icon: GiftIcon },
+      { label: 'Gestión de Reclamos', to: { name: 'Quejas' }, icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24'}, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' }) ]) } },
+      { label: 'Pedidos Especiales', to: { name: 'PedidosEspeciales' }, icon: GiftIcon },
+    ]
+  },
+  // ***** INICIO DE LA MODIFICACIÓN *****
+  // Añadimos un nuevo menú desplegable para Logística.
+  {
+    label: 'Logística',
+    icon: TruckIcon, // Usamos el nuevo icono
+    roles: ['admin', 'coord'], // Definimos qué roles pueden ver este menú
+    children: [
+      { 
+        label: 'Control de Consumo', 
+        to: { name: 'ControlConsumo' }, // Apunta al 'name' de la nueva ruta
+        icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 12l2 2 4-4m6-4a9 9 0 11-18 0 9 9 0 0118 0z' }) ]) }
+      },
+    ]
+  },
+  // ***** FIN DE LA MODIFICACIÓN *****
+  {
+    label: 'Carga de Archivos',
+    icon: UploadIcon,
+    roles: ['admin', 'coord'],
+    children: [
+      { 
+        label: 'Control Devolución', 
+        to: { name: 'LogisticaControl' },
+        icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' }) ]) }
+      },
+      { 
+        label: 'Comprobante IQ', 
+        to: { name: 'InstrumentadorUpload' },
+        icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z' }), h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M15 13a3 3 0 11-6 0 3 3 0 016 0z' }) ]) }
+      },
     ]
   }
 ]));
@@ -117,16 +147,19 @@ const items = computed(() => ([
 const visibleItems = computed(() => items.value.filter(i => i.roles.includes(props.userRole)));
 
 const isActive = (item) => {
-  if (item.to === route.path) return true;
+  const currentRouteName = route.name;
+  if (item.to && item.to.name === currentRouteName) return true;
   if (item.children) {
-    return item.children.some(child => child.to === route.path);
+    return item.children.some(child => child.to && child.to.name === currentRouteName);
   }
   return false;
 };
 
 const go = (to) => { 
   router.push(to); 
-  emit('toggle-sidebar'); 
+  if (props.isOpen) {
+    emit('toggle-sidebar'); 
+  }
 };
 
 const loggingOut = ref(false);

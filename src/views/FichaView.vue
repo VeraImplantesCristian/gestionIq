@@ -1,3 +1,4 @@
+<!-- src/views/FichaView.vue (Completo y Corregido) -->
 <template>
   <div class="min-h-screen w-full bg-slate-900 flex flex-col items-center justify-center p-4 sm:p-8">
     <div class="w-full max-w-4xl">
@@ -20,6 +21,7 @@
           v-else-if="viewState === 'submitted'" 
           :paciente-nombre="reporte.paciente"
           :activity-token="activityToken"
+          :reporte-id="submittedReportId"
         />
 
         <IdentificationWizard v-else-if="viewState === 'identification'" @identification-complete="handleIdentificationComplete" @request-update="requestUpdate"/>
@@ -48,6 +50,9 @@ const reporte = ref(null);
 const error = ref(null);
 const instrumentador = ref(null);
 const activityToken = ref(null);
+
+// ***** CORRECCIÓN 1: Definimos la variable de estado que faltaba *****
+const submittedReportId = ref(null);
 
 const fetchReporte = async () => {
   viewState.value = 'loading';
@@ -95,10 +100,11 @@ const fetchReporte = async () => {
     reporte.value = reporteData;
     
     if (reporteData.estado === 'Enviado') {
-      // Si la ficha ya fue enviada, intentamos generar un token para que el usuario
-      // pueda acceder a su historial de todos modos.
+      // ***** CORRECCIÓN 2: Si la ficha ya fue enviada, también guardamos su ID *****
+      // Esto asegura que si el usuario refresca la página, la carga de evidencia siga funcionando.
+      submittedReportId.value = reporteData.id;
+
       if (reporteData.instrumentador_dni) {
-        // Usamos un try/catch separado para que un fallo aquí no rompa la vista.
         try {
           const { data: token } = await supabase.rpc('create_instrumentador_token', {
             p_instrumentador_dni: reporteData.instrumentador_dni
@@ -130,11 +136,13 @@ const handleIdentificationComplete = (identifiedInstrumentador) => {
   viewState.value = 'form_display';
 };
 
-const handleSuccess = async () => {
+// ***** CORRECCIÓN 3: La función ahora acepta el 'reporteId' del evento *****
+const handleSuccess = async (reporteId) => {
+  // Guardamos el ID que nos llega del FichaForm.
+  submittedReportId.value = reporteId;
+
   sessionStorage.removeItem('iq_instrumentador');
   
-  // La lógica de generación de token ahora está dentro de un try/catch.
-  // Si falla, simplemente se loguea el error y la app continúa.
   try {
     const { data: token, error: tokenError } = await supabase.rpc('create_instrumentador_token', {
       p_instrumentador_dni: instrumentador.value.dni
@@ -146,12 +154,8 @@ const handleSuccess = async () => {
     
   } catch (err) {
     console.error("Error al crear el token de actividad:", err.message);
-    // No hacemos nada más, activityToken se quedará en null.
-    // El v-if en SubmissionSuccess se encargará de no mostrar un enlace roto.
   }
   
-  // El cambio de vista ocurre fuera del try/catch, asegurando que el usuario
-  // siempre vea la pantalla de éxito, incluso si la generación del token falla.
   viewState.value = 'submitted';
 };
 

@@ -9,7 +9,7 @@
         <!-- Contenido del Modal -->
         <div class="relative z-50 w-full max-w-3xl bg-white h-[90vh] flex flex-col rounded-lg shadow-xl dark:bg-slate-800">
           
-          <!-- Cabecera -->
+          <!-- Cabecera (sin cambios) -->
           <div class="p-4 border-b flex justify-between items-center flex-shrink-0 dark:border-slate-700">
             <h2 class="text-xl font-bold text-gray-800 dark:text-slate-100">
               {{ isEditing ? 'Editando Reporte' : 'Detalles Completos del Reporte' }}
@@ -17,22 +17,22 @@
             <button @click="cancelEdit" class="p-2 rounded-full text-gray-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700">&times;</button>
           </div>
 
-          <!-- Barra de Pestañas (solo en modo lectura) -->
+          <!-- 
+            Barra de Pestañas Principal (simplificada).
+            Solo se muestra en modo de "lectura".
+          -->
           <div v-if="!isEditing" class="px-6 pt-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
             <div class="flex space-x-4">
               <button @click="activeTab = 'details'" :class="['py-2 px-3 text-sm font-semibold rounded-t-md', activeTab === 'details' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200']">
                 Detalles
               </button>
-              <button @click="activeTab = 'history'" :class="['py-2 px-3 text-sm font-semibold rounded-t-md', activeTab === 'history' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200']">
-                Eventos
-              </button>
-              <button @click="activeTab = 'pdfHistory'" :class="['py-2 px-3 text-sm font-semibold rounded-t-md', activeTab === 'pdfHistory' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200']">
-                Historial PDF
+              <button @click="activeTab = 'evidence'" :class="['py-2 px-3 text-sm font-semibold rounded-t-md', activeTab === 'evidence' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200']">
+                Evidencias y Más
               </button>
             </div>
           </div>
 
-          <!-- Cuerpo con Scroll (con guardia v-if) -->
+          <!-- Cuerpo con Scroll -->
           <div v-if="formData" class="flex-grow p-6 overflow-y-auto">
             <!-- Pestaña/Vista de Detalles y Edición -->
             <div v-show="activeTab === 'details' || isEditing" class="space-y-8">
@@ -112,42 +112,15 @@
               </section>
             </div>
 
-            <!-- Pestaña de Historial de Eventos -->
-            <div v-show="activeTab === 'history' && !isEditing">
-              <ul class="space-y-4">
-                <li v-for="(event, index) in timelineEvents" :key="index" class="flex items-start space-x-4">
-                  <div class="flex flex-col items-center self-stretch">
-                    <span class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" :class="event.iconBg">
-                      <component :is="event.icon" class="h-5 w-5 text-white" />
-                    </span>
-                    <div v-if="index < timelineEvents.length - 1" class="w-0.5 flex-grow bg-slate-200 dark:bg-slate-700 my-2"></div>
-                  </div>
-                  <div>
-                    <p class="font-bold text-slate-800 dark:text-slate-100">{{ event.title }}</p>
-                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ formatDateTime(event.date) }}</p>
-                    <p v-if="event.subtitle" class="text-sm text-slate-500 dark:text-slate-400">{{ event.subtitle }}</p>
-                  </div>
-                </li>
-                <li v-if="timelineEvents.length === 0" class="text-center text-slate-500 py-8">
-                  No hay eventos de historial para mostrar.
-                </li>
-              </ul>
-            </div>
-            
-            <!-- Pestaña de Historial PDF -->
-            <div v-show="activeTab === 'pdfHistory' && !isEditing">
-              <div v-if="pdfHistoryLoading" class="text-center text-slate-500 py-8">Cargando historial...</div>
-              <div v-else-if="pdfHistoryError" class="text-center text-red-500 py-8">{{ pdfHistoryError }}</div>
-              <ul v-else-if="pdfHistory.length > 0" class="space-y-3">
-                <li v-for="log in pdfHistory" :key="log.id" class="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md border dark:border-slate-700 flex justify-between items-center">
-                  <div>
-                    <p class="font-semibold text-slate-800 dark:text-slate-100">Versión {{ log.version }}</p>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Generado el {{ formatDateTime(log.generated_at) }}</p>
-                  </div>
-                  <span class="text-xs font-mono px-2 py-1 bg-slate-200 dark:bg-slate-600 rounded">Usuario: {{ log.generated_by ? log.generated_by.slice(0, 8) : 'N/A' }}...</span>
-                </li>
-              </ul>
-              <div v-else class="text-center text-slate-500 py-8">Aún no se ha generado ningún PDF.</div>
+            <!-- 
+              Contenedor para las nuevas pestañas secundarias.
+              Se muestra solo si no estamos editando y la pestaña 'evidence' está activa.
+            -->
+            <div v-show="activeTab === 'evidence' && !isEditing">
+              <ReportTabs 
+                :report-id="formData.id"
+                :owner-id="formData.instrumentador_dni"
+              />
             </div>
           </div>
 
@@ -192,8 +165,11 @@ import { supabase } from '../services/supabase.js';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useToast } from 'vue-toastification';
-import { DocumentPlusIcon, LinkIcon, PaperAirplaneIcon } from '@heroicons/vue/24/solid';
 
+// Se importa el nuevo componente de pestañas.
+import ReportTabs from './report-details/ReportTabs.vue';
+
+// Los componentes se cargan de forma asíncrona para optimizar.
 const EditableField = defineAsyncComponent(() => import('./EditableField.vue'));
 const RatingRow = defineAsyncComponent(() => import('./RatingRow.vue'));
 const ReportPDF = defineAsyncComponent(() => import('./ReportPDF.vue'));
@@ -206,39 +182,17 @@ const activeTab = ref('details');
 const isEditing = ref(false);
 const isSaving = ref(false);
 const formData = ref(null);
-
-const pdfHistory = ref([]);
-const pdfHistoryLoading = ref(false);
-const pdfHistoryError = ref(null);
 const currentPdfVersion = ref(null);
 
-const fetchPdfHistory = async () => {
-  if (!props.reporte?.id) return;
-  pdfHistoryLoading.value = true;
-  pdfHistoryError.value = null;
-  try {
-    const { data, error } = await supabase
-      .from('pdf_generation_log')
-      .select('id, version, generated_at, generated_by')
-      .eq('reporte_id', props.reporte.id)
-      .order('version', { ascending: false });
-    
-    if (error) throw error;
-    pdfHistory.value = data;
-  } catch (err) {
-    pdfHistoryError.value = 'No se pudo cargar el historial de PDF.';
-    toast.error(pdfHistoryError.value);
-  } finally {
-    pdfHistoryLoading.value = false;
-  }
-};
+// La lógica para cargar el historial de PDF y los eventos de la línea de tiempo
+// se ha eliminado de este componente. Ahora es responsabilidad de los componentes
+// hijos dentro de ReportTabs, manteniendo este archivo más limpio.
 
 watch(() => props.show, (isVisible) => {
   if (isVisible) {
+    // Al abrir, siempre se resetea a la pestaña de detalles.
     activeTab.value = 'details';
-    pdfHistory.value = [];
     currentPdfVersion.value = null;
-    fetchPdfHistory(); 
   }
 });
 
@@ -265,28 +219,18 @@ const cancelEdit = () => {
   }
 };
 
-// ========= INICIO DE LA CORRECCIÓN =========
+// La función saveChanges se mantiene intacta, incluyendo el parche
+// para eliminar las columnas que no existen en la tabla 'reportes'.
 const saveChanges = async () => {
   if (!formData.value) return;
   isSaving.value = true;
   try {
-    // 1. Creamos una copia limpia del objeto de datos.
     const updateData = { ...formData.value };
-
-    // 2. Eliminamos las propiedades que no existen en la tabla 'reportes'.
-    // Esto evita que el cliente de Supabase intente actualizar columnas inexistentes.
-    delete updateData.total_count; // La columna virtual de la RPC.
-    delete updateData.short_links; // El objeto de la relación que a veces se incluye.
-
-    // 3. El resto de la lógica de desestructuración que ya tenías es correcta
-    // para evitar enviar 'id' y otras propiedades en el cuerpo del UPDATE.
+    delete updateData.total_count;
+    delete updateData.short_links;
     const { id, created_at, token, url_firma, instrumentadores, ...finalUpdateData } = updateData;
-
-    // 4. Realizamos el update solo con los datos limpios.
     const { error } = await supabase.from('reportes').update(finalUpdateData).eq('id', id);
-    
     if (error) throw error;
-    
     toast.success('Reporte actualizado con éxito.');
     emit('updated');
     close();
@@ -296,39 +240,24 @@ const saveChanges = async () => {
     isSaving.value = false;
   }
 };
-// ========= FIN DE LA CORRECCIÓN =========
-
-const timelineEvents = computed(() => {
-  if (!props.reporte) return [];
-  const events = [];
-  if (props.reporte.created_at) events.push({ icon: DocumentPlusIcon, iconBg: 'bg-blue-500', title: 'Reporte Creado', date: props.reporte.created_at });
-  if (props.reporte.token) events.push({ icon: LinkIcon, iconBg: 'bg-purple-500', title: 'Link de Ficha Generado', date: props.reporte.created_at });
-  if (props.reporte.fecha_envio) events.push({ icon: PaperAirplaneIcon, iconBg: 'bg-emerald-500', title: 'Ficha Enviada', subtitle: `por ${props.reporte.instrumentador_completado}`, date: props.reporte.fecha_envio });
-  return events.sort((a, b) => new Date(a.date) - new Date(b.date));
-});
 
 const isGeneratingPdf = ref(false);
 const pdfComponentRef = ref(null);
 
+// La función para generar el PDF se mantiene intacta.
 const generatePDF = async () => {
   if (!props.reporte) return;
   isGeneratingPdf.value = true;
-
   try {
     const { data: version, error: rpcError } = await supabase.rpc('log_pdf_generation', {
       p_reporte_id: props.reporte.id
     });
-
     if (rpcError) throw rpcError;
-
     currentPdfVersion.value = version;
     toast.success(`Generando PDF Versión ${version}...`);
-
     await new Promise(resolve => setTimeout(resolve, 50));
-
     const pdfElement = pdfComponentRef.value?.pdfTemplateRef;
     if (!pdfElement) throw new Error("Elemento de PDF no encontrado.");
-    
     const canvas = await html2canvas(pdfElement, { scale: 2, useCORS: true });
     const imgData = canvas.toDataURL('image/jpeg', 1.0);
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -336,13 +265,8 @@ const generatePDF = async () => {
     const pdfHeight = pdf.internal.pageSize.getHeight();
     const ratio = canvas.width / canvas.height;
     let imgHeight = pdfWidth / ratio;
-    
     pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight);
-    
     pdf.save(`Reporte-${props.reporte.id_cirugia || props.reporte.id}-V${version}.pdf`);
-    
-    fetchPdfHistory();
-
   } catch (error) {
     console.error("Error al generar el PDF:", error);
     toast.error(`Hubo un error al generar el PDF: ${error.message}`);
@@ -351,6 +275,7 @@ const generatePDF = async () => {
   }
 };
 
+// La función para descargar la firma se mantiene intacta.
 const downloadSignature = () => {
   if (!formData.value?.url_firma) return;
   fetch(formData.value.url_firma)
@@ -369,6 +294,7 @@ const downloadSignature = () => {
     .catch(() => toast.error('No se pudo descargar la firma.'));
 };
 
+// La función de formato de fecha se mantiene intacta.
 const formatDateTime = (dateString) => {
   if (!dateString) return 'N/A';
   return new Date(dateString).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' hs';
