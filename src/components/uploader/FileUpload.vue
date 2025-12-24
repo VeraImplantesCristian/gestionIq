@@ -1,42 +1,39 @@
 <!-- src/components/uploader/FileUpload.vue -->
 <template>
   <div class="uploader-container">
-    <!-- 
-      Input de archivo oculto.
-      - 'multiple': Permite al usuario seleccionar más de un archivo a la vez.
-    -->
+    <!-- Input 1: Para selección múltiple de archivos desde el explorador -->
     <input 
       type="file" 
       @change="handleFileChange" 
-      ref="fileInput" 
+      ref="fileInputMultiple" 
       :accept="acceptedFileTypes"
-      :capture="captureMode"
       hidden 
       multiple 
     />
+    <!-- Input 2: Exclusivo para la cámara (sin 'multiple', con 'capture') -->
+    <input 
+      type="file" 
+      @change="handleFileChange" 
+      ref="fileInputCamera" 
+      :accept="acceptedFileTypes"
+      capture="environment"
+      hidden 
+    />
 
-    <!-- 
-      Botones iniciales para seleccionar archivos.
-      Se ocultan una vez que hay archivos en la cola para subir.
-    -->
+    <!-- Botones iniciales para seleccionar archivos -->
     <div v-if="selectedFiles.length === 0" class="initial-buttons">
-      <button @click="triggerFileInput(false)" :disabled="isUploading">
+      <button @click="triggerFileInput('multiple')" :disabled="isUploading">
         Seleccionar Archivos
       </button>
-      <!-- Botón para cámara de móvil (solo en móviles) -->
-      <button v-if="enableCamera && isMobile" @click="triggerFileInput(true)" :disabled="isUploading" class="mt-2">
+      <button v-if="enableCamera && isMobile" @click="triggerFileInput('camera')" :disabled="isUploading" class="mt-2">
         Abrir Cámara
       </button>
-      <!-- Botón para webcam de PC (solo en escritorio) -->
       <button v-if="enableCamera && !isMobile" @click="isWebcamModalOpen = true" :disabled="isUploading" class="mt-2">
         Usar Webcam
       </button>
     </div>
 
-    <!-- 
-      Galería de previsualización para los archivos seleccionados.
-      Aparece cuando hay al menos un archivo en la cola.
-    -->
+    <!-- Galería de previsualización para los archivos seleccionados -->
     <div v-if="selectedFiles.length > 0" class="preview-gallery-container">
       <h4 class="preview-title">Archivos a subir ({{ selectedFiles.length }}):</h4>
       <div class="preview-gallery">
@@ -44,7 +41,6 @@
           <img v-if="file.type.startsWith('image/')" :src="getPreviewUrl(file)" class="preview-image" alt="Previsualización" />
           <div v-else class="preview-generic">📄</div>
           <p class="preview-caption" :title="file.name">{{ file.name }}</p>
-          <!-- Botón para eliminar un archivo del lote antes de subirlo -->
           <button @click="removeFile(index)" class="remove-btn" :disabled="isUploading" aria-label="Quitar archivo">×</button>
         </div>
       </div>
@@ -52,10 +48,10 @@
 
     <!-- Acciones de subida -->
     <div v-if="selectedFiles.length > 0" class="upload-actions">
-      <button @click="startUpload" :disabled="isUploading || selectedFiles.length === 0">
-        {{ isUploading ? `Subiendo ${uploadProgress.current} de ${uploadProgress.total}...` : `Confirmar y Subir (${selectedFiles.length}) Archivos` }}
+      <!-- Este botón ahora es controlado por el padre, pero mantenemos el texto para feedback -->
+      <button @click="confirmSelection" :disabled="isUploading">
+        {{ isUploading ? `Procesando ${uploadProgress.current} de ${uploadProgress.total}...` : `Confirmar Selección (${selectedFiles.length})` }}
       </button>
-      <!-- Barra de progreso general del lote -->
       <progress v-if="isUploading" :value="uploadProgress.current" :max="uploadProgress.total"></progress>
     </div>
     
@@ -63,10 +59,7 @@
       {{ statusMessage }}
     </p>
 
-    <!-- 
-      Instancia del componente modal de la webcam.
-      Se renderiza aquí pero se muestra en el body gracias a <Teleport>.
-    -->
+    <!-- Modal de la webcam para escritorio -->
     <WebcamCapture 
       :show="isWebcamModalOpen" 
       @close="isWebcamModalOpen = false"
@@ -82,6 +75,7 @@ import { useImageCompression } from './useImageCompression';
 import { useB2Upload } from './useB2Upload';
 import { useDeviceDetection } from '../../composables/useDeviceDetection';
 import WebcamCapture from '../capture/WebcamCapture.vue';
+import { useToast } from 'vue-toastification';
 
 const props = defineProps({
   area: { type: String, required: true },
@@ -90,16 +84,19 @@ const props = defineProps({
   enableCamera: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['upload-success', 'upload-error']);
+const emit = defineEmits(['selection-confirmed', 'all-uploads-complete', 'upload-failed', 'upload-success']);
+
+const toast = useToast();
 
 // --- ESTADO ---
-const fileInput = ref(null);
+const fileInputMultiple = ref(null);
+const fileInputCamera = ref(null);
 const selectedFiles = ref([]);
-const captureMode = ref(null);
 const statusMessage = ref('');
 const isUploading = ref(false);
 const uploadProgress = ref({ current: 0, total: 0 });
 const isWebcamModalOpen = ref(false);
+const isChainShotActive = ref(false);
 
 // --- COMPOSABLES ---
 const { isMobile } = useDeviceDetection();
@@ -108,17 +105,29 @@ const { uploadFile } = useB2Upload();
 
 // --- MÉTODOS ---
 
-const triggerFileInput = (useCamera) => {
-  captureMode.value = useCamera ? 'environment' : null;
-  fileInput.value.click();
+const triggerFileInput = (mode) => {
+  isChainShotActive.value = (mode === 'camera');
+  if (mode === 'multiple') {
+    fileInputMultiple.value.click();
+  } else if (mode === 'camera') {
+    fileInputCamera.value.click();
+  }
 };
 
 const handleFileChange = (event) => {
   const newFiles = Array.from(event.target.files);
-  if (!newFiles.length) return;
-  selectedFiles.value.push(...newFiles);
-  statusMessage.value = '';
-  event.target.value = ''; // Permite seleccionar los mismos archivos de nuevo
+  if (newFiles.length > 0) {
+    selectedFiles.value.push(...newFiles);
+    if (isChainShotActive.value) {
+      setTimeout(() => {
+        fileInputCamera.value.click();
+      }, 100);
+      return;
+    }
+  } else {
+    isChainShotActive.value = false;
+  }
+  event.target.value = '';
 };
 
 const handlePhotoTaken = (photoFile) => {
@@ -133,71 +142,85 @@ const removeFile = (index) => {
   selectedFiles.value.splice(index, 1);
 };
 
+const confirmSelection = () => {
+  emit('selection-confirmed', selectedFiles.value);
+};
+
 const startUpload = async () => {
-  if (selectedFiles.value.length === 0) return;
+  console.log('[FileUpload] 🚀 startUpload INICIADO.');
+  if (selectedFiles.value.length === 0) {
+    console.log('[FileUpload] No hay archivos seleccionados. Saliendo.');
+    return [];
+  }
 
   isUploading.value = true;
   statusMessage.value = 'Iniciando subida en lote...';
   uploadProgress.value = { current: 0, total: selectedFiles.value.length };
+  toast.info(`Iniciando subida de ${selectedFiles.value.length} archivos...`);
 
   const filesToUpload = [...selectedFiles.value];
-  
+  const uploadedFilesData = [];
+
   for (const file of filesToUpload) {
     try {
       uploadProgress.value.current++;
-      statusMessage.value = `Procesando ${file.name}...`;
+      console.log(`[FileUpload] 🔄 Procesando archivo ${uploadProgress.value.current}/${uploadProgress.value.total}: ${file.name}`);
       
       let fileToProcess = file;
       if (file.type.startsWith('image/')) {
+        console.log(`[FileUpload] 🖼️ Comprimiendo imagen: ${file.name}`);
         fileToProcess = await compressImageIfNeeded(file);
+        console.log(`[FileUpload] ✅ Imagen comprimida.`);
       }
 
       const extension = fileToProcess.name.split('.').pop();
       
-      statusMessage.value = `Solicitando permiso para ${file.name}...`;
+      console.log(`[FileUpload] 🔗 Solicitando URL firmada para ${file.name}...`);
       const { data: presignedData, error: presignedError } = await supabase.functions.invoke('b2-presigned-url', {
         body: { area: props.area, owner: props.ownerId, contentType: fileToProcess.type, extension },
       });
       if (presignedError) throw presignedError;
+      console.log(`[FileUpload] ✅ URL firmada recibida.`);
 
-      statusMessage.value = `Subiendo ${file.name}...`;
+      console.log(`[FileUpload] 📤 Subiendo a R2: ${file.name}`);
       await uploadFile(presignedData.uploadUrl, fileToProcess);
+      console.log(`[FileUpload] ✅ Archivo subido a R2 con éxito.`);
       
-      emit('upload-success', {
+      const fileResult = {
         owner_id: props.ownerId,
         object_key: presignedData.objectKey,
         area: props.area,
         content_type: fileToProcess.type,
         size_bytes: fileToProcess.size,
         file_name: fileToProcess.name,
-      });
+      };
+      uploadedFilesData.push(fileResult);
+      emit('upload-success', fileResult);
 
     } catch (error) {
-      console.error(`Fallo al subir ${file.name}:`, error);
-      statusMessage.value = `Error con el archivo ${file.name}.`;
-      emit('upload-error', { error, file });
+      console.error(`[FileUpload] ❌ FALLO al subir ${file.name}:`, error);
+      toast.error(`Error al subir ${file.name}: ${error.message}`);
+      emit('upload-failed', { error, file });
       isUploading.value = false;
-      return; // Detenemos el lote en caso de error
+      throw error;
     }
   }
 
-  statusMessage.value = '¡Lote de subida completado!';
+  console.log('[FileUpload] 🎉 Lote de subida completado con éxito.');
+  toast.success('Todos los archivos se subieron correctamente.');
   isUploading.value = false;
-  selectedFiles.value = []; // Limpiamos la selección al terminar con éxito
+  selectedFiles.value = [];
+  return uploadedFilesData;
 };
 
-// --- FUNCIÓN EXPUESTA ---
-// Permite que el componente padre llame a este método para limpiar el estado.
 const clear = () => {
   selectedFiles.value = [];
   statusMessage.value = '';
-  if (fileInput.value) {
-    fileInput.value.value = '';
-  }
+  if (fileInputMultiple.value) fileInputMultiple.value.value = '';
+  if (fileInputCamera.value) fileInputCamera.value.value = '';
 };
 
-// Exponemos la función 'clear' para que sea accesible desde el ref del padre.
-defineExpose({ clear });
+defineExpose({ clear, startUpload, selectedFiles });
 </script>
 
 <style scoped>

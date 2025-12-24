@@ -14,7 +14,7 @@
           <!-- Título y Fecha del Control -->
           <div class="timeline-header">
             <p class="timeline-title">Control de Devolución - Estado: <span class="font-bold">{{ control.estado.toUpperCase() }}</span></p>
-            <time class="timeline-time">{{ formatDateTime(control.fecha_retiro) }}</time>
+            <time class="timeline-time">{{ formatDateTime(control.created_at) }}</time>
           </div>
           
           <!-- Observaciones -->
@@ -22,19 +22,10 @@
             {{ control.observaciones }}
           </p>
 
-          <!-- 
-            Galería de Fotos Adjuntas para este control específico.
-            - Le pasamos el 'reportId' y el 'logisticaControlId' para que PhotosGallery
-              sepa exactamente qué fotos buscar.
-          -->
-          <PhotosGallery
-            v-if="control.id"
-            :report-id="reportId"
-            :logistica-control-id="control.id"
-            :area="'logistica'"
-            :show-uploader="false"
-            :title="'Evidencia de este control'"
-            :compact="true"
+          <!-- Visor de Evidencias -->
+          <EvidenceViewer 
+            v-if="control.photos && control.photos.length > 0"
+            :files="control.photos" 
             class="mt-4"
           />
         </div>
@@ -51,28 +42,27 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { supabase } from '../../services/supabase';
-// Importamos el componente de galería completo.
-import PhotosGallery from './PhotosGallery.vue';
+import EvidenceViewer from '../shared/EvidenceViewer.vue';
 
 const props = defineProps({
   reportId: { type: [String, Number], required: true },
 });
 
-// --- ESTADO INTERNO ---
 const isLoading = ref(true);
 const errorMsg = ref(null);
 const logisticaControls = ref([]);
-
-// --- MÉTODOS ---
+const R2_PUBLIC_URL = import.meta.env.VITE_R2_PUBLIC_URL;
 
 const formatDateTime = (dateString) => {
   if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-  const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
-  return adjustedDate.toLocaleDateString('es-ES', {
-    day: '2-digit', month: '2-digit', year: 'numeric'
-  });
+  return new Date(dateString).toLocaleString('es-AR', {
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric', 
+    hour: '2-digit', 
+    minute: '2-digit',
+    timeZone: 'America/Argentina/Buenos_Aires'
+  }) + ' hs';
 };
 
 const getStatusColor = (status) => {
@@ -82,23 +72,45 @@ const getStatusColor = (status) => {
   return 'bg-gray-400';
 };
 
-/**
- * Función que carga solo los registros de control de logística.
- * La carga de fotos se delega al componente PhotosGallery.
- */
 const fetchData = async () => {
   isLoading.value = true;
   errorMsg.value = null;
+  console.log(`--- [LogisticaTimeline] Iniciando fetchData para reporte ID: ${props.reportId} ---`);
+
   try {
     const { data, error } = await supabase
-      .from('logistica_controles')
-      .select('id, fecha_retiro, estado, observaciones')
+      .from('logistica_controles_con_evidencias')
+      .select('*')
       .eq('cirugia_id', props.reportId)
-      .order('fecha_retiro', { ascending: false });
+      .order('created_at', { ascending: false });
+
+    // Log 1: Muestra los datos crudos tal como llegan de la VISTA de Supabase.
+    console.log('--- [LogisticaTimeline] Datos crudos de la VIEW ---');
+    console.log(JSON.parse(JSON.stringify(data)));
 
     if (error) throw error;
 
-    logisticaControls.value = data || [];
+    const processedData = (data || []).map(control => {
+      let processedPhotos = [];
+      if (control.photos && Array.isArray(control.photos) && control.photos.length > 0) {
+        // Log 2: Muestra el array de fotos de cada control antes de ser procesado.
+        console.log(`--- [LogisticaTimeline] Procesando fotos para control ID: ${control.id} ---`);
+        console.log(JSON.parse(JSON.stringify(control.photos)));
+
+        processedPhotos = control.photos.map(photo => ({
+          ...photo,
+          url: `${R2_PUBLIC_URL}/${photo.object_key}`,
+          caption: photo.file_name
+        }));
+      }
+      return { ...control, photos: processedPhotos };
+    });
+
+    // Log 3: Muestra los datos finales, ya procesados y listos para ser renderizados en el template.
+    console.log('--- [LogisticaTimeline] Datos finales procesados para la UI ---');
+    console.log(JSON.parse(JSON.stringify(processedData)));
+
+    logisticaControls.value = processedData;
 
   } catch (error) {
     console.error("Error cargando datos de logística:", error);
@@ -108,7 +120,6 @@ const fetchData = async () => {
   }
 };
 
-// Llamamos a la función de carga cuando el componente se monta.
 onMounted(fetchData);
 </script>
 
@@ -128,16 +139,4 @@ onMounted(fetchData);
 .bg-yellow-500 { background-color: #f59e0b; }
 .bg-red-500 { background-color: #ef4444; }
 .bg-gray-400 { background-color: #9ca3af; }
-
-/* Estilo para hacer la galería más compacta dentro del timeline */
-.mt-4.compact-gallery :deep(.gallery-header) {
-  margin-bottom: 0.75rem;
-}
-.mt-4.compact-gallery :deep(.gallery-title) {
-  font-size: 0.875rem;
-}
-.mt-4.compact-gallery :deep(.gallery-grid) {
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 0.5rem;
-}
 </style>

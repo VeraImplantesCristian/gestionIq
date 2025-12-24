@@ -4,18 +4,22 @@
     <div class="form-wrapper">
       <h1 class="form-title">Control de Consumo y Devolución</h1>
       
+      <!-- Paso 1: Selector de Cirugía -->
       <div class="form-group">
         <SurgerySelector @surgery-selected="handleSurgerySelection" ref="surgerySelectorRef" />
       </div>
 
+      <!-- Alerta de Reporte Existente -->
       <div v-if="existingControlWarning" class="warning-alert">
         <span class="font-bold">⚠️ Atención:</span> Ya existe un control registrado para esta cirugía el {{ existingControlWarning }}.
       </div>
 
+      <!-- Resumen de la cirugía seleccionada -->
       <div v-if="form.selectedSurgery" class="selected-surgery-summary">
         <strong>Cirugía:</strong> {{ form.selectedSurgery.display_text }}
       </div>
 
+      <!-- Paso 2: Campos de Control (responsivos) -->
       <div class="form-grid">
         <div class="form-group">
           <label for="fecha-control">Fecha de Control</label>
@@ -32,6 +36,7 @@
         </div>
       </div>
 
+      <!-- Paso 3: Observaciones / Consumo -->
       <div class="form-group">
         <label for="observaciones">Observaciones / Consumo Detallado</label>
         <textarea 
@@ -43,6 +48,7 @@
         ></textarea>
       </div>
 
+      <!-- Paso 4: Carga de Múltiples Fotos -->
       <div class="form-group">
         <label>Adjuntar Evidencia (Fotos)</label>
         <FileUpload 
@@ -56,15 +62,15 @@
         />
       </div>
       
+      <!-- Visor de las fotos que se han subido a R2 y están listas para guardar -->
       <EvidenceViewer :files="form.evidences" />
 
+      <!-- Paso 5: Botón de Guardar -->
       <div class="final-actions">
         <button @click="saveControl" :disabled="!isFormValid || isSaving">
           {{ isSaving ? 'Guardando...' : 'Guardar Control' }}
         </button>
       </div>
-
-      <p v-if="statusMessage" :class="statusClass">{{ statusMessage }}</p>
     </div>
   </div>
 </template>
@@ -90,8 +96,6 @@ const form = reactive({
 });
 
 const isSaving = ref(false);
-const statusMessage = ref('');
-const hasError = ref(false);
 const existingControlWarning = ref(null);
 
 const surgerySelectorRef = ref(null);
@@ -101,7 +105,6 @@ onMounted(() => {
   form.fecha = format(new Date(), 'yyyy-MM-dd');
 });
 
-const statusClass = computed(() => hasError.value ? 'status-error' : 'status-success');
 const isFormValid = computed(() => {
   return form.selectedSurgery && form.fecha && form.estado && form.observaciones.trim() !== '';
 });
@@ -109,19 +112,15 @@ const isFormValid = computed(() => {
 const handleSurgerySelection = async (surgery) => {
   form.selectedSurgery = surgery;
   existingControlWarning.value = null;
-
   try {
-    // ***** CORRECCIÓN 1: Hacemos la consulta explícita para evitar el error 406 *****
     const { data, error } = await supabase
       .from('logistica_controles')
-      .select('fecha_retiro') // Solo pedimos la columna que necesitamos
+      .select('fecha_retiro')
       .eq('cirugia_id', surgery.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
-
     if (error && error.code !== 'PGRST116') throw error;
-
     if (data) {
       existingControlWarning.value = new Date(data.fecha_retiro).toLocaleDateString('es-ES');
     }
@@ -142,13 +141,9 @@ const handleUploadSuccess = (fileData) => {
   form.evidences.push(newEvidence);
 };
 
-// ***** CORRECCIÓN 2: Manejamos el error de subida *****
 const handleUploadError = (errorInfo) => {
   toast.error(`Error al subir el archivo ${errorInfo.file.name}.`);
-  // Detenemos el proceso de guardado si una foto falla.
   isSaving.value = false; 
-  statusMessage.value = `Error: Falló la subida de un archivo.`;
-  hasError.value = true;
 };
 
 const saveControl = async () => {
@@ -158,12 +153,10 @@ const saveControl = async () => {
   }
 
   isSaving.value = true;
-  statusMessage.value = 'Guardando registro...';
-  hasError.value = false;
 
   try {
-    // La lógica de subida de fotos ya ocurrió a través de FileUpload.
-    // Aquí solo guardamos los datos en la base de datos.
+    // La lógica de subida de archivos ya ocurrió a través de los eventos de FileUpload.
+    // Aquí, solo nos preocupamos de guardar el registro.
     const params = {
       p_cirugia_id: form.selectedSurgery.id,
       p_fecha_retiro: form.fecha,
@@ -178,7 +171,6 @@ const saveControl = async () => {
     };
 
     const { error } = await supabase.rpc('create_logistica_control_with_evidences', params);
-
     if (error) throw error;
 
     toast.success('¡Control de consumo guardado con éxito!');
@@ -187,10 +179,7 @@ const saveControl = async () => {
   } catch (error) {
     console.error("Error al guardar el control:", error);
     toast.error(`Error al guardar: ${error.message}`);
-    hasError.value = true;
-    statusMessage.value = `Error: ${error.message}`;
   } finally {
-    // ***** CORRECCIÓN 3: El bloque 'finally' asegura que el estado de guardado siempre se resetee *****
     isSaving.value = false;
   }
 };
@@ -213,17 +202,52 @@ const resetForm = () => {
 </script>
 
 <style scoped>
-.consumo-view-container { padding: 2rem; background-color: #f1f5f9; min-height: 100%; }
-.form-wrapper { max-width: 700px; margin: 0 auto; background-color: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 1.5rem; }
-.form-title { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 1rem; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.consumo-view-container {
+  padding: 1rem;
+  background-color: #f1f5f9;
+  min-height: 100%;
+}
+.form-wrapper {
+  max-width: 700px;
+  margin: 0 auto;
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.form-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+@media (min-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .consumo-view-container {
+    padding: 2rem;
+  }
+  .form-wrapper {
+    padding: 2rem;
+  }
+  .form-title {
+    font-size: 1.5rem;
+  }
+}
 .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
 label { font-weight: 500; }
 .form-input, textarea, select { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; }
 .selected-surgery-summary { padding: 0.75rem; background-color: #eef2ff; border-left: 4px solid #4f46e5; font-size: 0.9rem; }
 .final-actions button { width: 100%; padding: 1rem; background-color: #2563eb; color: white; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; }
 .final-actions button:disabled { background-color: #9ca3af; cursor: not-allowed; }
-.status-error { color: red; }
-.status-success { color: green; }
 .warning-alert { padding: 0.75rem; background-color: #fff7ed; border-left: 4px solid #f97316; color: #c2410c; font-size: 0.9rem; border-radius: 4px; }
 </style>

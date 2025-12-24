@@ -1,4 +1,4 @@
-// src/components/uploader/useB2Upload.js
+// src/components/uploader/useB2Upload.js (Corregido)
 import { ref } from 'vue';
 
 export function useB2Upload() {
@@ -6,10 +6,10 @@ export function useB2Upload() {
   const isUploading = ref(false);
 
   /**
-   * Sube un archivo a una URL pre-firmada de B2 usando XMLHttpRequest para monitorear el progreso.
-   * @param {string} uploadUrl - La URL pre-firmada obtenida de la Edge Function.
+   * Sube un archivo a una URL pre-firmada de B2 usando XMLHttpRequest.
+   * @param {string} uploadUrl - La URL pre-firmada.
    * @param {File} file - El archivo a subir.
-   * @returns {Promise<any>} - Una promesa que resuelve cuando la subida es exitosa.
+   * @returns {Promise<any>}
    */
   const uploadFile = (uploadUrl, file) => {
     return new Promise((resolve, reject) => {
@@ -18,6 +18,17 @@ export function useB2Upload() {
 
       const xhr = new XMLHttpRequest();
       xhr.open('PUT', uploadUrl, true);
+      
+      // ***** INICIO DE LA CORRECCIÓN *****
+      // 1. Añadimos un timeout generoso (60 segundos).
+      // El valor está en milisegundos. 60000ms = 1 minuto.
+      xhr.timeout = 60000;
+
+      // 2. Manejamos el evento de timeout.
+      xhr.ontimeout = () => {
+        reject(new Error('La subida tardó demasiado y fue cancelada (timeout).'));
+      };
+      // ***** FIN DE LA CORRECCIÓN *****
       
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
@@ -29,17 +40,18 @@ export function useB2Upload() {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(xhr.response);
         } else {
-          reject(new Error(`Fallo en la subida a B2: Status ${xhr.status}`));
+          // Damos un mensaje de error más específico.
+          reject(new Error(`Fallo en la subida a R2. El servidor respondió con el estado ${xhr.status}.`));
         }
       };
       
-      xhr.onerror = () => reject(new Error('Error de red durante la subida.'));
+      xhr.onerror = () => reject(new Error('Error de red durante la subida. Revisa tu conexión.'));
 
       xhr.onloadend = () => {
         isUploading.value = false;
       };
 
-      xhr.setRequestHeader("Content-Type", "image/jpeg");
+      xhr.setRequestHeader('Content-Type', file.type);
       xhr.send(file);
     });
   };
