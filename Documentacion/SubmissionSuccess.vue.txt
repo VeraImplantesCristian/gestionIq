@@ -1,4 +1,4 @@
-<!-- src/components/SubmissionSuccess.vue -->
+<!-- src/components/SubmissionSuccess.vue (con Carga de Evidencia Existente) -->
 <template>
   <div class="w-full max-w-lg mx-auto text-center">
     <div class="bg-white p-8 sm:p-12 rounded-2xl shadow-lg dark:bg-slate-800">
@@ -60,32 +60,26 @@
               </div>
               
               <div>
-                <!-- El componente FileUpload ahora está siempre visible para una experiencia más ágil -->
-                <FileUpload
-                  ref="fileUploaderRef"
-                  area="instrumentadores"
-                  :owner-id="String(reporteId)"
-                  :accepted-file-types="'image/*'"
-                  :enable-camera="true"
-                />
-
-                <!-- Nuevo botón para finalizar la subida, que orquesta toda la acción -->
-                <button 
-                  @click="finalizeUploads" 
-                  :disabled="isSaving"
-                  class="mt-4 inline-flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg"
-                >
+                <button v-if="!showUploader" @click="showUploader = true" class="inline-flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg">
                   <CloudArrowUpIcon class="w-5 h-5" />
-                  <span>{{ isSaving ? 'Guardando Evidencia...' : 'Finalizar y Guardar Evidencia' }}</span>
+                  <span>Subir Archivos desde la Web</span>
                 </button>
 
-                <!-- Mensaje de éxito temporal -->
+                <div v-if="showUploader" class="mt-4">
+                  <FileUpload
+                    :area="'evidencias'"
+                    :owner-id="String(reporteId)"
+                    :accepted-file-types="'image/*,application/pdf'"
+                    :enable-camera="true"
+                    @upload-success="handleUploadSuccess"
+                  />
+                </div>
+
                 <div v-if="uploadSuccessMessage" class="success-feedback">
                   <p>{{ uploadSuccessMessage }}</p>
                 </div>
 
-                <!-- El visor muestra las evidencias existentes y las recién subidas -->
-                <EvidenceViewer v-if="uploadedFiles.length > 0" :files="uploadedFiles" class="mt-4" />
+                <EvidenceViewer :files="uploadedFiles" class="mt-4" />
               </div>
 
               <div class="flex items-center text-center">
@@ -113,6 +107,7 @@
 </template>
 
 <script setup>
+// ***** CAMBIO 1: Importamos 'onMounted' de Vue *****
 import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'vue-toastification';
 import { supabase } from '../services/supabase';
@@ -127,76 +122,65 @@ const props = defineProps({
 });
 
 const toast = useToast();
-const fileUploaderRef = ref(null); // Referencia al componente FileUpload
-const uploadedFiles = ref([]); // Almacena las evidencias existentes y las nuevas
-const isSaving = ref(false);
+const showUploader = ref(false);
+const uploadedFiles = ref([]);
+let uploadSuccessTimer = null;
 const uploadSuccessMessage = ref('');
 
-// Carga las evidencias que ya existan para este reporte cuando el componente se monta
+// ***** CAMBIO 2: Nueva función para cargar datos existentes *****
+/**
+ * Busca en la base de datos si ya existen evidencias para este reporte
+ * y las carga en el estado local.
+ */
 const fetchExistingEvidences = async () => {
   if (!props.reporteId) return;
+
   try {
     const { data, error } = await supabase
       .from('reporte_evidencias')
       .select('*')
       .eq('reporte_id', props.reporteId)
-      .eq('area', 'instrumentadores'); // Filtro CRÍTICO para no mostrar las de logística
+      .order('created_at', { ascending: true }); // Opcional: ordenar por fecha
 
     if (error) throw error;
+
+    // Poblamos nuestro array con los archivos encontrados.
     uploadedFiles.value = data || [];
   } catch (error) {
     toast.error("No se pudo cargar la evidencia existente.");
   }
 };
 
-onMounted(fetchExistingEvidences);
+// ***** CAMBIO 3: Usamos el hook 'onMounted' *****
+// Esta función se ejecutará automáticamente una vez que el componente se monte en la página.
+onMounted(() => {
+  fetchExistingEvidences();
+});
 
-// Orquesta la subida y el guardado en la base de datos
-const finalizeUploads = async () => {
-  if (!fileUploaderRef.value) return;
-
-  isSaving.value = true;
-  uploadSuccessMessage.value = '';
-
+const handleUploadSuccess = async (fileData) => {
+  clearTimeout(uploadSuccessTimer);
   try {
-    // 1. Ordena a FileUpload que suba los archivos a R2
-    const newEvidences = await fileUploaderRef.value.startUpload();
-
-    // Si no se seleccionaron nuevos archivos, no hacemos nada.
-    if (newEvidences.length === 0) {
-      toast.info("No hay nuevos archivos para guardar.");
-      return;
-    }
-
-    // 2. Prepara los registros para la base de datos
-    const recordsToInsert = newEvidences.map(ev => ({
+    const recordToInsert = {
       reporte_id: props.reporteId,
-      object_key: ev.object_key,
-      file_name: ev.file_name,
-      content_type: ev.content_type,
-      size_bytes: ev.size_bytes,
-      area: 'instrumentadores' // Asignamos el área correcta
-    }));
-
-    // 3. Inserta todos los registros en un solo lote
-    const { data: insertedData, error } = await supabase
-      .from('reporte_evidencias')
-      .insert(recordsToInsert)
-      .select();
-
+      object_key: fileData.object_key,
+      file_name: fileData.file_name,
+      content_type: fileData.content_type,
+      size_bytes: fileData.size_bytes,
+    };
+    const { data, error } = await supabase.from('reporte_evidencias').insert(recordToInsert).select().single();
     if (error) throw error;
-
-    // 4. Actualiza la UI con los nuevos archivos y limpia el uploader
-    uploadedFiles.value.push(...insertedData);
-    fileUploaderRef.value.clear();
     
-    uploadSuccessMessage.value = `¡${insertedData.length} archivo(s) guardado(s) con éxito!`;
-    setTimeout(() => { uploadSuccessMessage.value = ''; }, 5000);
+    // La lógica de añadir el nuevo archivo al array se mantiene.
+    uploadedFiles.value.push(data);
+    
+    uploadSuccessMessage.value = `¡Archivos subidos con éxito! Serán revisados por el equipo. Podés seguir agregando más si es necesario.`;
+
+    uploadSuccessTimer = setTimeout(() => {
+      uploadSuccessMessage.value = '';
+    }, 5000);
 
   } catch (error) {
     toast.error(`Error al guardar la evidencia: ${error.message}`);
-  } finally {
-    isSaving.value = false;
   }
 };
 

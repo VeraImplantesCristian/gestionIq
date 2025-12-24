@@ -5,90 +5,95 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-// Cabeceras CORS para permitir la comunicación desde tu frontend
+// --- CABECERAS CORS ---
+// Definimos las cabeceras aquí para que la función sea autocontenida
+// y no dependa de archivos externos, evitando errores de despliegue.
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS', // Permitimos POST para la data y OPTIONS para el pre-vuelo
 };
 
-// Inicia el servidor de la función
-serve(async (req) => {
-  // Log inicial para confirmar que la función fue invocada
-  console.log("Función b2-presigned-url invocada.");
+// --- CONFIGURACIÓN DE R2 ---
+// Obtenemos las credenciales y la configuración de R2 desde las variables de entorno de Supabase.
+// El '!' al final asegura que Deno lance un error si estas variables no están definidas.
+const R2_ACCOUNT_ID = Deno.env.get("R2_ACCOUNT_ID")!;
+const R2_ACCESS_KEY_ID = Deno.env.get("R2_ACCESS_KEY_ID")!;
+const R2_SECRET_ACCESS_KEY = Deno.env.get("R2_SECRET_ACCESS_KEY")!;
+const R2_BUCKET_NAME = Deno.env.get("R2_BUCKET_NAME")!;
 
-  // Manejo de la solicitud pre-vuelo (preflight) del navegador para CORS
+// Inicializa el cliente S3 que se comunicará con Cloudflare R2.
+const s3Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: R2_ACCESS_KEY_ID,
+    secretAccessKey: R2_SECRET_ACCESS_KEY,
+  },
+  forcePathStyle: true, // Requerido para la compatibilidad de R2 con el SDK de S3
+});
+
+// Inicia el servidor de la función Deno.
+serve(async (req) => {
+  // Manejo de la solicitud pre-vuelo (preflight) del navegador para CORS.
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Extrae los datos enviados desde el frontend
-    const { area, contentType, owner, extension } = await req.json();
-    console.log("Payload recibido:", { area, contentType, owner, extension });
+    // Extrae los datos enviados desde el frontend.
+    // Aceptamos 'baseName' para asegurar la sincronización entre original y miniatura.
+    const { area, contentType, owner, extension, isThumb, baseName } = await req.json();
 
-    // --- OBTENCIÓN Y LOG DE SECRETS ---
-    const accountId = Deno.env.get("R2_ACCOUNT_ID");
-    const accessKeyId = Deno.env.get("R2_ACCESS_KEY_ID");
-    const secretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY");
-    const bucketName = Deno.env.get("R2_BUCKET_NAME");
-
-    // Logs de depuración para verificar los valores de los secrets
-    console.log("--- Verificando Secrets ---");
-    console.log(`R2_ACCOUNT_ID: ${accountId}`);
-    console.log(`R2_ACCESS_KEY_ID: ${accessKeyId}`);
-    // Por seguridad, nunca logueamos el secret completo, solo su existencia y longitud
-    console.log(`R2_SECRET_ACCESS_KEY presente: ${!!secretAccessKey}, Longitud: ${secretAccessKey?.length || 0}`);
-    console.log(`R2_BUCKET_NAME: ${bucketName}`);
-    console.log("--------------------------");
-
-    // Validación para asegurar que todos los secrets fueron cargados
-    if (!accountId || !accessKeyId || !secretAccessKey || !bucketName) {
-      throw new Error("Uno o más secrets de R2 no están configurados correctamente en el dashboard de Supabase.");
+    // Validación para asegurar que los parámetros esenciales fueron recibidos.
+    if (!area || !contentType || !extension || !baseName) {
+      throw new Error("Faltan parámetros requeridos (area, contentType, extension, baseName).");
     }
 
-    // Construye el endpoint de Cloudflare R2
-    const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
-    console.log(`Endpoint construido: ${endpoint}`);
-
-    // Inicializa el cliente S3 que se comunicará con R2
-    console.log("Inicializando S3Client...");
-    const s3Client = new S3Client({
-      region: "auto",
-      endpoint: endpoint,
-      credentials: {
-        accessKeyId: accessKeyId,
-        secretAccessKey: secretAccessKey,
-      },
-      forcePathStyle: true,
-    });
-    console.log("S3Client inicializado correctamente.");
+    // --- GENERACIÓN DE LA RUTA DEL OBJETO (OBJECT KEY) ---
+    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '/'); // Formato YYYY/MM/DD
     
-    // Crea una ruta única y organizada para el archivo
-    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '/');
-    const uuid = crypto.randomUUID();
-    let objectKey = `${area}/${uuid}.${extension}`;
-    if (area === 'logistica') objectKey = `logistica/${timestamp}/${uuid}.${extension}`;
-    else if (area === 'instrumentadores') objectKey = `instrumentadores/${owner}/comprobantes/${uuid}.${extension}`;
+    // Añade el sufijo '_thumb' al nombre base SOLO si 'isThumb' es verdadero.
+    const finalName = isThumb ? `${baseName}_thumb` : baseName;
+    
+    // Construye la ruta final con la extensión correcta.
+    let objectKey = `${area}/${finalName}.${extension}`;
+    if (area === 'logistica') {
+      objectKey = `logistica/${timestamp}/${finalName}.${extension}`;
+    } else if (area === 'instrumentadores') {
+      objectKey = `instrumentadores/${owner}/comprobantes/${finalName}.${extension}`;
+    }
+    // --- FIN DE LA GENERACIÓN DE RUTA ---
 
-    // Define el "Comando" o la acción que queremos realizar (subir un objeto)
+    // Define el "Comando" o la acción que queremos realizar: subir un objeto (PutObjectCommand).
     const command = new PutObjectCommand({
-      Bucket: bucketName,
+      Bucket: R2_BUCKET_NAME,
       Key: objectKey,
       ContentType: contentType,
     });
 
-    // Genera la URL firmada que el frontend usará para subir el archivo directamente a R2
-    console.log("Generando URL firmada...");
+    // Genera la URL firmada que el frontend usará para subir el archivo directamente a R2.
     const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 }); // Válida por 5 minutos
-    console.log("URL firmada generada con éxito.");
 
-    // Devuelve la URL y la ruta del objeto al frontend
-    return new Response(JSON.stringify({ uploadUrl, objectKey }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Devuelve la URL de subida y la clave del objeto (objectKey) al frontend.
+    return new Response(
+      JSON.stringify({ uploadUrl, objectKey }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
 
   } catch (error) {
-    // Si algo falla en el bloque 'try', este bloque lo capturará
-    console.error("!!! ERROR CAPTURADO EN EL BLOQUE CATCH !!!", error);
-    // Devuelve una respuesta de error clara al frontend
-    return new Response(JSON.stringify({ error: "Error en el servidor.", details: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Si ocurre algún error durante el proceso, lo capturamos aquí.
+    console.error("!!! ERROR EN LA EDGE FUNCTION b2-presigned-url !!!", error);
+    // Devolvemos una respuesta de error clara al frontend.
+    return new Response(
+      JSON.stringify({ error: "Error en el servidor.", details: error.message }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
   }
 });

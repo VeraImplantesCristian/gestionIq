@@ -51,22 +51,19 @@
       <!-- Paso 4: Carga de Múltiples Fotos -->
       <div class="form-group">
         <label>Adjuntar Evidencia (Fotos)</label>
-        <!--
-          COMENTARIO: Hemos eliminado los manejadores de eventos @upload-success y @upload-error.
-          Este componente ya no reaccionará a subidas individuales. En su lugar,
-          orquestará la subida completa desde la función saveControl.
-        -->
         <FileUpload 
-          ref="fileUploaderRef"
+          :area="'logistica'"
           :owner-id="form.selectedSurgery ? String(form.selectedSurgery.id) : 'temp'"
+          :accepted-file-types="'image/*'"
+          :enable-camera="true"
+          @upload-success="handleUploadSuccess"
+          @upload-error="handleUploadError"
+          ref="fileUploaderRef"
         />
       </div>
       
-      <!--
-        COMENTARIO: Hemos eliminado el componente EvidenceViewer.
-        La responsabilidad de previsualizar los archivos *antes* de la subida
-        recae completamente en FileUpload.vue, simplificando este componente.
-      -->
+      <!-- Visor de las fotos que se han subido a R2 y están listas para guardar -->
+      <EvidenceViewer :files="form.evidences" />
 
       <!-- Paso 5: Botón de Guardar -->
       <div class="final-actions">
@@ -86,8 +83,7 @@ import { useToast } from 'vue-toastification';
 
 import SurgerySelector from '../../components/shared/SurgerySelector.vue';
 import FileUpload from '../../components/uploader/FileUpload.vue';
-// COMENTARIO: Ya no necesitamos EvidenceViewer aquí.
-// import EvidenceViewer from '../../components/shared/EvidenceViewer.vue';
+import EvidenceViewer from '../../components/shared/EvidenceViewer.vue';
 
 const toast = useToast();
 
@@ -96,27 +92,23 @@ const form = reactive({
   fecha: '',
   estado: '',
   observaciones: '',
-  // COMENTARIO: Eliminamos 'evidences' del estado del formulario.
-  // La lista de archivos subidos la obtendremos directamente de la
-  // función startUpload() en el momento de guardar.
+  evidences: [],
 });
 
 const isSaving = ref(false);
 const existingControlWarning = ref(null);
 
 const surgerySelectorRef = ref(null);
-const fileUploaderRef = ref(null); // Esta referencia es ahora CRÍTICA
+const fileUploaderRef = ref(null);
 
 onMounted(() => {
   form.fecha = format(new Date(), 'yyyy-MM-dd');
 });
 
-// COMENTARIO: La lógica de isFormValid no necesita cambios.
 const isFormValid = computed(() => {
   return form.selectedSurgery && form.fecha && form.estado && form.observaciones.trim() !== '';
 });
 
-// COMENTARIO: La lógica de handleSurgerySelection no necesita cambios.
 const handleSurgerySelection = async (surgery) => {
   form.selectedSurgery = surgery;
   existingControlWarning.value = null;
@@ -130,15 +122,29 @@ const handleSurgerySelection = async (surgery) => {
       .single();
     if (error && error.code !== 'PGRST116') throw error;
     if (data) {
-      existingControlWarning.value = new Date(data.fecha_retiro).toLocaleDateDateString('es-ES');
+      existingControlWarning.value = new Date(data.fecha_retiro).toLocaleDateString('es-ES');
     }
   } catch (err) {
     toast.error("Error al verificar controles existentes.");
   }
 };
 
-// COMENTARIO: Las funciones handleUploadSuccess y handleUploadError se eliminan
-// porque ya no usamos el patrón de eventos para la subida.
+const handleUploadSuccess = (fileData) => {
+  const newEvidence = {
+    object_key: fileData.object_key,
+    file_name: fileData.file_name,
+    content_type: fileData.content_type,
+    size_bytes: fileData.size_bytes || 0,
+    id: fileData.object_key,
+    url: `${import.meta.env.VITE_R2_PUBLIC_URL}/${fileData.object_key}`,
+  };
+  form.evidences.push(newEvidence);
+};
+
+const handleUploadError = (errorInfo) => {
+  toast.error(`Error al subir el archivo ${errorInfo.file.name}.`);
+  isSaving.value = false; 
+};
 
 const saveControl = async () => {
   if (!isFormValid.value) {
@@ -149,20 +155,14 @@ const saveControl = async () => {
   isSaving.value = true;
 
   try {
-    // PASO 1: Orquestar la subida de archivos.
-    // Llamamos a la función `startUpload` expuesta por el componente FileUpload.
-    // Esta función se encargará de subir todos los archivos seleccionados a R2.
-    const uploadedEvidences = await fileUploaderRef.value.startUpload();
-
-    // PASO 2: Preparar los datos para la RPC.
-    // Usamos el array `uploadedEvidences` que nos devolvió startUpload.
+    // La lógica de subida de archivos ya ocurrió a través de los eventos de FileUpload.
+    // Aquí, solo nos preocupamos de guardar el registro.
     const params = {
       p_cirugia_id: form.selectedSurgery.id,
       p_fecha_retiro: form.fecha,
       p_estado: form.estado,
       p_observaciones: form.observaciones,
-      // Mapeamos los metadatos devueltos para que coincidan con lo que espera la RPC.
-      p_evidences: uploadedEvidences.map(ev => ({
+      p_evidences: form.evidences.map(ev => ({
         object_key: ev.object_key,
         file_name: ev.file_name,
         content_type: ev.content_type,
@@ -170,8 +170,6 @@ const saveControl = async () => {
       })),
     };
 
-    // PASO 3: Llamar a la RPC para guardar todo en la base de datos.
-    // Esto solo ocurre si el PASO 1 fue exitoso.
     const { error } = await supabase.rpc('create_logistica_control_with_evidences', params);
     if (error) throw error;
 
@@ -179,9 +177,8 @@ const saveControl = async () => {
     resetForm();
 
   } catch (error) {
-    // Este bloque `catch` ahora captura tanto errores de subida de archivos como errores de la RPC.
     console.error("Error al guardar el control:", error);
-    toast.error(`Error al guardar: ${error.message || 'Ocurrió un problema.'}`);
+    toast.error(`Error al guardar: ${error.message}`);
   } finally {
     isSaving.value = false;
   }
@@ -191,13 +188,13 @@ const resetForm = () => {
   form.selectedSurgery = null;
   form.estado = '';
   form.observaciones = '';
+  form.evidences = [];
   form.fecha = format(new Date(), 'yyyy-MM-dd');
   existingControlWarning.value = null;
   
   if (surgerySelectorRef.value) {
     surgerySelectorRef.value.clear();
   }
-  // Es crucial limpiar también el componente de subida.
   if (fileUploaderRef.value) {
     fileUploaderRef.value.clear();
   }
@@ -205,7 +202,6 @@ const resetForm = () => {
 </script>
 
 <style scoped>
-/* COMENTARIO: Los estilos no requieren cambios. */
 .consumo-view-container {
   padding: 1rem;
   background-color: #f1f5f9;
