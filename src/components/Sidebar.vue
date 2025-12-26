@@ -16,7 +16,7 @@
     <nav class="flex-grow p-3 space-y-1">
       <div v-for="item in visibleItems" :key="item.label">
         <!-- Enlace simple -->
-        <button v-if="!item.children" @click="item.action ? item.action() : go(item.to)" class="nav-link group" :aria-current="isActive(item) ? 'page' : undefined">
+        <button v-if="!item.children" @click="handleNavigation(item)" class="nav-link group" :aria-current="isActive(item) ? 'page' : undefined">
           <component :is="item.icon" class="w-5 h-5 shrink-0"/>
           <span class="truncate">{{ item.label }}</span>
           <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
@@ -29,7 +29,7 @@
             <svg class="ml-auto h-4 w-4 transform transition-transform duration-200" :class="isSubmenuOpen(item.label) ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
           </button>
           <div v-show="isSubmenuOpen(item.label)" class="pl-4 mt-1 space-y-1">
-            <button v-for="child in item.children" :key="child.label" @click="go(child.to)" class="nav-link group w-full" :aria-current="isActive(child) ? 'page' : undefined">
+            <button v-for="child in item.children" :key="child.label" @click="handleNavigation(child)" class="nav-link group w-full" :aria-current="isActive(child) ? 'page' : undefined">
               <component :is="child.icon" class="w-5 h-5 shrink-0"/>
               <span class="truncate">{{ child.label }}</span>
             </button>
@@ -47,6 +47,13 @@
       <p class="mt-2 text-[11px] text-slate-400 text-center select-none">v{{ appVersion }}</p>
     </div>
   </aside>
+
+  <!-- Modal de Autorización -->
+  <AuthorizationModal
+    :show="isAuthorizationModalVisible"
+    @authorized="onAuthorized"
+    @cancelled="onCancelled"
+  />
 </template>
 
 <script setup>
@@ -54,6 +61,8 @@ import { ref, computed, onMounted, onBeforeUnmount, h } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { supabase } from '../services/supabase';
 import { useToast } from 'vue-toastification';
+import { useAuthorization } from '../composables/useAuthorization';
+import AuthorizationModal from './admin/AuthorizationModal.vue';
 
 const props = defineProps({ 
   isOpen: Boolean, 
@@ -65,6 +74,7 @@ const emit = defineEmits(['toggle-sidebar']);
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const { isAuthorizationModalVisible, requestAuthorization, onAuthorized, onCancelled } = useAuthorization();
 
 const openSubmenus = ref([]);
 const isSubmenuOpen = (label) => openSubmenus.value.includes(label);
@@ -91,8 +101,8 @@ const HeartIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', str
 const GiftIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7' }) ]) };
 const LogoutIcon = { render: () => h('svg', { class: 'w-5 h-5', fill:'none', stroke:'currentColor', viewBox:'0 0 24 24' }, [ h('path', { 'stroke-linecap':'round','stroke-linejoin':'round','stroke-width':'2', d:'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' }) ]) };
 const UploadIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' }) ]) };
-// ***** NUEVO: Icono para el menú de Logística *****
 const TruckIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z' }), h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 17H6V6h11v5l-4 4H9' }) ]) };
+const DollarIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8v1m0 6v1m6-1a9 9 0 11-18 0 9 9 0 0118 0z' }) ]) };
 
 // --- ESTRUCTURA DE NAVEGACIÓN ---
 const items = computed(() => ([
@@ -110,21 +120,36 @@ const items = computed(() => ([
       { label: 'Pedidos Especiales', to: { name: 'PedidosEspeciales' }, icon: GiftIcon },
     ]
   },
-  // ***** INICIO DE LA MODIFICACIÓN *****
-  // Añadimos un nuevo menú desplegable para Logística.
   {
     label: 'Logística',
-    icon: TruckIcon, // Usamos el nuevo icono
-    roles: ['admin', 'coord'], // Definimos qué roles pueden ver este menú
+    icon: TruckIcon,
+    roles: ['admin', 'coord'],
     children: [
       { 
         label: 'Control de Consumo', 
-        to: { name: 'ControlConsumo' }, // Apunta al 'name' de la nueva ruta
+        to: { name: 'ControlConsumo' },
         icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 12l2 2 4-4m6-4a9 9 0 11-18 0 9 9 0 0118 0z' }) ]) }
       },
     ]
   },
-  // ***** FIN DE LA MODIFICACIÓN *****
+  {
+    label: 'Administración',
+    icon: DollarIcon,
+    roles: ['admin'],
+    requiresAuth: true,
+    children: [
+      { 
+        label: 'Pendientes de Pago', 
+        to: { name: 'PagosDashboard' },
+        icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H4a3 3 0 00-3 3v8a3 3 0 003 3z' }) ]) }
+      },
+      { 
+        label: 'Registrar Lote de Pago', 
+        to: { name: 'GestionPagos' },
+        icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' }) ]) }
+      },
+    ]
+  },
   {
     label: 'Carga de Archivos',
     icon: UploadIcon,
@@ -155,7 +180,31 @@ const isActive = (item) => {
   return false;
 };
 
+let pendingNavigation = null;
+
+const handleNavigation = async (item) => {
+  if (item.action) {
+    item.action();
+    return;
+  }
+
+  const requiresAuth = item.requiresAuth || items.value.find(parent => parent.children?.includes(item))?.requiresAuth;
+
+  if (requiresAuth) {
+    pendingNavigation = item.to;
+    const authorized = await requestAuthorization();
+    
+    if (authorized) {
+      go(pendingNavigation);
+      pendingNavigation = null;
+    }
+  } else {
+    go(item.to);
+  }
+};
+
 const go = (to) => { 
+  if (!to) return;
   router.push(to); 
   if (props.isOpen) {
     emit('toggle-sidebar'); 

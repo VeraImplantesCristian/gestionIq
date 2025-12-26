@@ -59,21 +59,16 @@
                 {{ iq.promedio_puntaje_iq.toFixed(2) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 text-center">
-                <!-- ========= INICIO DE LA MEJORA ========= -->
-                <!-- 1. Se agrupan los botones de enlace en un div para mejor espaciado. -->
                 <div class="inline-flex items-center rounded-md shadow-sm bg-slate-100 dark:bg-slate-700/50 p-0.5">
-                  <!-- Botón para enlace corto (3 días) -->
+                  <button @click="copyPermanentLink(iq)" title="Copiar enlace de acceso permanente" class="action-button">
+                    <KeyIcon class="h-5 w-5" />
+                  </button>
                   <button @click="copyActivityLink(iq.dni, 3)" title="Copiar enlace temporal (3 días)" class="action-button">
                     <LinkIcon class="h-5 w-5" />
-                  </button>
-                  <!-- Botón para enlace largo (30 días) -->
-                  <button @click="copyActivityLink(iq.dni, 30)" title="Copiar enlace permanente (30 días)" class="action-button">
-                    <CalendarDaysIcon class="h-5 w-5" />
                   </button>
                 </div>
                 <button @click="openWeeklyScoreModal(iq)" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300">Valorar</button>
                 <button @click="openEditModal(iq)" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Editar</button>
-                <!-- ========= FIN DE LA MEJORA ========= -->
               </td>
             </tr>
           </tbody>
@@ -108,10 +103,7 @@ import NewInstrumentadorModal from '../components/NewInstrumentadorModal.vue';
 import ImportInstrumentadoresModal from '../components/ImportInstrumentadoresModal.vue';
 import PaginationControls from '../components/PaginationControls.vue';
 
-// ========= INICIO DE LA MEJORA =========
-// 2. Importamos los nuevos íconos.
-import { LinkIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline';
-// ========= FIN DE LA MEJORA =========
+import { LinkIcon, KeyIcon } from '@heroicons/vue/24/outline';
 
 const headerConfig = inject('header-config');
 const isNewModalOpen = ref(false);
@@ -127,6 +119,7 @@ onMounted(() => {
       { text: 'Nuevo Instrumentador', action: openNewModal, class: 'bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-blue-700 flex items-center space-x-2', icon: markRaw({ render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 6v6m0 0v6m0-6h6m-6 0H6' }) ]) }) }
     ]
   };
+  fetchInstrumentadores();
 });
 onUnmounted(() => { headerConfig.value = { title: '', buttons: [] }; });
 
@@ -211,8 +204,6 @@ const fetchInstrumentadores = async () => {
   }
 };
 
-onMounted(fetchInstrumentadores);
-
 const getPromedioColor = (promedio, escala) => {
   const p = (promedio / escala) * 100;
   if (p >= 90) return 'text-green-500 dark:text-green-400';
@@ -237,13 +228,51 @@ const handleUpdate = () => {
   toast.success('Lista de instrumentadores actualizada.');
 };
 
-// ========= INICIO DE LA MEJORA =========
-// 3. La función ahora acepta la duración del token como parámetro.
+const copyPermanentLink = async (instrumentador) => {
+  let token = instrumentador.activity_token;
+  const loadingToastId = toast.info("Procesando enlace...", { timeout: false });
+
+  try {
+    // Si el instrumentador no tiene un token, lo generamos.
+    if (!token) {
+      toast.update(loadingToastId, { content: "Generando nuevo enlace permanente..." });
+      
+      const { data: newToken, error: rpcError } = await supabase.rpc('generar_activity_token', {
+        p_instrumentador_dni: instrumentador.dni
+      });
+
+      if (rpcError) throw rpcError;
+      if (!newToken) throw new Error('La base de datos no devolvió el nuevo token.');
+      
+      token = newToken;
+      // Actualizamos la lista local para que el cambio se refleje inmediatamente.
+      const instIndex = instrumentadores.value.findIndex(i => i.dni === instrumentador.dni);
+      if (instIndex !== -1) {
+        instrumentadores.value[instIndex].activity_token = token;
+      }
+    }
+
+    const url = `${window.location.origin}/resumen/${token}`;
+    await navigator.clipboard.writeText(url);
+    
+    toast.update(loadingToastId, { 
+      content: "¡Enlace de acceso permanente copiado!", 
+      options: { type: 'success', timeout: 3000 } 
+    });
+
+  } catch (err) {
+    console.error('Error al copiar el enlace permanente:', err);
+    toast.update(loadingToastId, { 
+      content: `No se pudo procesar el enlace: ${err.message}`, 
+      options: { type: 'error', timeout: 5000 } 
+    });
+  }
+};
+
 const copyActivityLink = async (dni, days) => {
   try {
     const loadingToast = toast.info(`Generando enlace de ${days} días...`, { timeout: false });
 
-    // Llamamos a la RPC pasándole ambos parámetros.
     const { data: token, error: rpcError } = await supabase.rpc('create_instrumentador_token', {
       p_instrumentador_dni: dni,
       p_dias_validez: days
@@ -265,7 +294,6 @@ const copyActivityLink = async (dni, days) => {
     toast.error(`No se pudo copiar el enlace: ${err.message}`);
   }
 };
-// ========= FIN DE LA MEJORA =========
 </script>
 
 <style scoped>
@@ -278,7 +306,6 @@ const copyActivityLink = async (dni, days) => {
 .active-sort {
   @apply bg-gray-100 dark:bg-slate-600;
 }
-/* 4. Nuevo estilo para el grupo de botones de acción. */
 .action-button {
   @apply p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md transition-colors;
 }

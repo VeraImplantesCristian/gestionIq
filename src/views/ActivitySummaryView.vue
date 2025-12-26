@@ -1,154 +1,248 @@
 <!-- src/views/ActivitySummaryView.vue -->
 <template>
-  <div class="min-h-screen w-full bg-slate-900 flex flex-col items-center p-4 sm:p-8">
-    <!-- ESTADO DE CARGA -->
-    <div v-if="loading" class="text-center text-slate-400 pt-20">
-      <svg class="animate-spin h-12 w-12 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-      <p class="mt-4 text-lg">Buscando tu historial de actividad...</p>
+  <div class="min-h-screen bg-slate-100 dark:bg-slate-900 p-4 sm:p-8">
+    
+    <!-- ESTADO 1: PANTALLA DE AUTENTICACIÓN (PIDE EL DNI) -->
+    <div v-if="!isAuthenticated" class="max-w-md mx-auto pt-16">
+      <div class="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg text-center">
+        <img src="/2.svg" alt="Districorr" class="h-10 mx-auto mb-6 opacity-80">
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100">Resumen de Actividad</h1>
+        <p class="text-slate-600 dark:text-slate-400 mt-2 mb-6">
+          Por favor, ingresá tu DNI para acceder a tu información.
+        </p>
+        
+        <form @submit.prevent="authenticate">
+          <div class="form-group">
+            <label for="dni" class="sr-only">DNI</label>
+            <input 
+              type="text" 
+              id="dni" 
+              v-model="dni"
+              placeholder="Ingresá tu DNI (con o sin puntos)"
+              class="form-input"
+              required
+            />
+          </div>
+          
+          <p v-if="error" class="error-message">{{ error }}</p>
+
+          <button type="submit" :disabled="isLoading" class="w-full btn-primary">
+            {{ isLoading ? 'Verificando...' : 'Continuar' }}
+          </button>
+        </form>
+      </div>
     </div>
 
-    <!-- ESTADO DE ERROR -->
-    <div v-else-if="error" class="text-center text-red-400 max-w-md pt-20">
-      <h2 class="text-2xl font-bold">Enlace Inválido o Expirado</h2>
-      <p class="mt-2">El enlace para acceder a tu resumen de actividad no es válido o ya ha expirado. Por favor, completa una nueva ficha para generar un nuevo enlace.</p>
-    </div>
-
-    <!-- VISTA DE DATOS (ÉXITO) -->
-    <div v-else-if="activityData" class="w-full max-w-3xl">
-      <!-- Cabecera -->
-      <header class="text-center">
-        <h1 class="text-3xl font-bold text-white">Tu Historial de Actividad</h1>
-        <p class="text-slate-300 mt-2 text-lg">
-          Hola, <span class="font-semibold">{{ activityData.instrumentador.nombre_completo }}</span>
-        </p>
-        <p class="text-slate-400 mt-1 text-sm">
-          Gracias por formar parte de un equipo que busca hacer las cosas bien.
-        </p>
+    <!-- ESTADO 2: VISTA DE DATOS (Rediseñada) -->
+    <div v-else class="max-w-7xl mx-auto">
+      <header class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">Tu Resumen de Actividad</h1>
+        <p class="text-slate-600 dark:text-slate-400 mt-1">Gestiona tus cirugías, pagos y estados de ficha.</p>
       </header>
 
-      <!-- Tarjeta de Resumen Única -->
-      <section class="mt-8">
+      <!-- Indicadores Superiores -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div class="stat-card">
-          <CalendarDaysIcon class="h-8 w-8 text-blue-400" />
-          <div class="flex-grow">
-            <span class="text-3xl font-bold text-white">{{ activityData.stats.cirugias_mes }}</span>
-            <p class="text-sm text-slate-400">Cirugías completadas este mes</p>
-          </div>
+          <h3 class="stat-title">Total Cirugías (Mes)</h3>
+          <p class="stat-value">{{ totalCirugiasMes }}</p>
         </div>
-      </section>
+        <div class="stat-card">
+          <h3 class="stat-title">Pendientes de Pago</h3>
+          <p class="stat-value">{{ pendientesDePago }}</p>
+        </div>
+      </div>
 
-      <!-- Lista de Cirugías Realizadas -->
-      <section class="mt-8">
-        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">
-          Actividad Reciente
-        </h2>
-        <ul v-if="activityData.cirugias.length > 0" class="space-y-3">
-          <li v-for="(cirugia, index) in activityData.cirugias" :key="cirugia.id" class="surgery-card">
-            <div class="flex items-center gap-4">
-              <div class="text-center shrink-0 w-12">
-                <p class="text-xl font-bold text-white">{{ formatDate(cirugia.fecha_cirugia).day }}</p>
-                <p class="text-xs font-semibold text-slate-400 uppercase">{{ formatDate(cirugia.fecha_cirugia).month }}</p>
+      <!-- Grilla de Tarjetas de Reporte -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div v-for="report in activityData" :key="report.id" class="report-card">
+          <div class="card-header">
+            <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"></path></svg>
+              <span>{{ formatDate(report.fecha_cirugia) }}</span>
+            </div>
+            <span class="status-badge" :class="getStatusClass(report.estado)">
+              {{ report.estado }}
+            </span>
+          </div>
+
+          <div class="card-body">
+            <h2 class="font-bold text-lg text-slate-800 dark:text-slate-100">{{ report.paciente }}</h2>
+            <div class="text-sm text-slate-600 dark:text-slate-300 mt-2 space-y-1">
+              <p><strong>Institución / Médico:</strong> {{ report.cliente_nombre || 'N/A' }} / {{ report.medico_nombre || 'N/A' }}</p>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <!-- Lógica para mostrar el estado de pago -->
+            <div v-if="report.estado === 'Enviado'">
+              <div v-if="report.estado_pago === 'Pagado'" class="payment-info">
+                <span class="status-badge bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-300">Pagado</span>
+                
+                <!-- Usamos un v-if para mostrar el enlace solo si existe un comprobante. -->
+                <a 
+                  v-if="report.comprobante_object_key" 
+                  :href="getComprobanteUrl(report.comprobante_object_key)" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  class="action-link"
+                >
+                  Ver recibo ↗
+                </a>
               </div>
-              <div class="flex-grow">
-                <p class="font-semibold text-white">{{ cirugia.paciente }}</p>
-                <p class="text-sm text-slate-400">{{ cirugia.medico }} - {{ cirugia.lugar_cirugia }}</p>
-              </div>
-              <div class="text-right shrink-0">
-                <!-- El botón ahora llama a la función 'openSummaryModal' -->
-                <button @click="openSummaryModal(cirugia)" class="action-button">
-                  <EyeIcon class="h-5 w-5" />
-                  <span>Ver Resumen</span>
-                </button>
-                <p v-if="index === 0" class="text-xs font-semibold text-green-400 mt-1 text-center">Último Envío</p>
+              <div v-else>
+                <span class="status-badge bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-300">Pendiente de Pago</span>
               </div>
             </div>
-          </li>
-        </ul>
-        <div v-else class="text-center py-10 px-4 bg-slate-800 rounded-lg border border-dashed border-slate-700">
-          <p class="text-slate-400">Aún no has completado ninguna ficha este mes.</p>
+            <div v-else>
+              <span class="text-sm text-slate-400">Completa la ficha para ver el estado de pago.</span>
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
     </div>
-
-    <!-- El nuevo modal de resumen se añade aquí -->
-    <SurgerySummaryModal 
-      :show="isModalVisible" 
-      :reporte="selectedSurgery"
-      @close="closeSummaryModal"
-    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { supabase } from '../services/supabase';
-import { CalendarDaysIcon, EyeIcon } from '@heroicons/vue/24/outline';
-// 1. Importamos el nuevo componente modal.
-import SurgerySummaryModal from '../components/SurgerySummaryModal.vue';
+import { useToast } from 'vue-toastification';
 
-const props = defineProps({
-  token: {
-    type: String,
-    required: true,
-  },
-});
-
-const loading = ref(true);
+// --- ESTADO DEL COMPONENTE ---
+const isAuthenticated = ref(false);
+const isLoading = ref(false);
 const error = ref(null);
-const activityData = ref(null);
+const dni = ref('');
+const activityData = ref([]);
 
-// 2. Añadimos el estado para controlar el modal.
-const isModalVisible = ref(false);
-const selectedSurgery = ref(null);
+const route = useRoute();
+const toast = useToast();
 
-// 3. Funciones para abrir y cerrar el modal.
-const openSummaryModal = (cirugia) => {
-  selectedSurgery.value = cirugia;
-  isModalVisible.value = true;
-};
-const closeSummaryModal = () => {
-  isModalVisible.value = false;
-  selectedSurgery.value = null; // Limpiamos la selección al cerrar.
-};
+const token = route.params.token;
+const R2_PUBLIC_URL = import.meta.env.VITE_R2_PUBLIC_URL;
 
-onMounted(async () => {
+// --- LÓGICA DE AUTENTICACIÓN ---
+const authenticate = async () => {
+  if (!dni.value.trim()) {
+    error.value = "El DNI es requerido.";
+    return;
+  }
+
+  isLoading.value = true;
+  error.value = null;
+
   try {
-    const { data, error: rpcError } = await supabase.rpc('get_instrumentador_activity', {
-      p_token: props.token,
+    const cleanDni = dni.value.trim().replace(/\D/g, '');
+
+    const { data, error: rpcError } = await supabase.rpc('autenticar_y_obtener_resumen', {
+      p_token: token,
+      p_dni: cleanDni
     });
 
     if (rpcError) throw rpcError;
-    if (!data) throw new Error('Token inválido o expirado.');
 
-    activityData.value = data;
+    if (data) {
+      activityData.value = data;
+      isAuthenticated.value = true;
+      toast.success("Acceso concedido.");
+    } else {
+      error.value = "Datos incorrectos. Por favor, verificá tu DNI.";
+      dni.value = '';
+      toast.error("Acceso denegado.");
+    }
 
   } catch (err) {
-    console.error('Error al obtener la actividad:', err.message);
-    error.value = err.message;
+    console.error("Error en la autenticación:", err);
+    error.value = "Ocurrió un error inesperado. Intentá de nuevo.";
+    toast.error("Error de conexión.");
   } finally {
-    loading.value = false;
+    isLoading.value = false;
   }
+};
+
+// --- PROPIEDADES COMPUTADAS PARA LOS INDICADORES ---
+const totalCirugiasMes = computed(() => {
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  return activityData.value.filter(report => {
+    const reportDate = new Date(report.fecha_cirugia);
+    return reportDate.getMonth() === currentMonth && reportDate.getFullYear() === currentYear;
+  }).length;
 });
 
+const pendientesDePago = computed(() => {
+  return activityData.value.filter(report => report.estado === 'Enviado' && report.estado_pago === 'Pendiente').length;
+});
+
+// --- FUNCIONES AUXILIARES DE FORMATO ---
 const formatDate = (dateString) => {
-  if (!dateString) return { day: '--', month: '---' };
-  const date = new Date(dateString);
-  return {
-    day: date.toLocaleDateString('es-ES', { day: '2-digit' }),
-    month: date.toLocaleDateString('es-ES', { month: 'short' }).replace('.', ''),
+  if (!dateString) return 'N/A';
+  const options = { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' };
+  return new Date(dateString).toLocaleDateString('es-AR', options);
+};
+
+const getStatusClass = (status) => {
+  const statusMap = {
+    'Pendiente': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-300',
+    'Enviado': 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300',
+    'Expirado': 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300',
   };
+  return statusMap[status] || 'bg-slate-100 text-slate-800';
+};
+
+const getComprobanteUrl = (objectKey) => {
+  if (!objectKey) return '#';
+  return `${R2_PUBLIC_URL}/${objectKey}`;
 };
 </script>
 
 <style scoped>
+/* Estilos para el formulario de DNI */
+.form-input {
+  @apply w-full px-4 py-3 border border-slate-300 rounded-lg text-center text-lg;
+  @apply dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100;
+}
+.error-message {
+  @apply text-red-500 text-sm mt-2 mb-4;
+}
+.btn-primary {
+  @apply w-full bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors;
+  @apply hover:bg-blue-700;
+  @apply disabled:bg-slate-400 disabled:cursor-not-allowed;
+}
+
+/* Estilos para los nuevos indicadores */
 .stat-card {
-  @apply bg-slate-800 p-6 rounded-lg border border-slate-700 flex items-center gap-6;
+  @apply bg-white dark:bg-slate-800 p-6 rounded-xl shadow;
 }
-.surgery-card {
-  @apply bg-slate-800 p-4 rounded-lg border border-slate-700 transition-all hover:border-slate-600;
+.stat-title {
+  @apply text-sm font-medium text-slate-500 dark:text-slate-400;
 }
-.action-button {
-  @apply flex items-center gap-2 h-9 px-3 rounded-md text-sm font-semibold;
-  @apply bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white;
+.stat-value {
+  @apply text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1;
+}
+
+/* Estilos para las nuevas tarjetas de reporte */
+.report-card {
+  @apply bg-white dark:bg-slate-800 rounded-xl shadow flex flex-col transition-transform duration-200 hover:scale-[1.02];
+}
+.card-header {
+  @apply flex justify-between items-center p-4 border-b border-slate-100 dark:border-slate-700;
+}
+.card-body {
+  @apply p-4 flex-grow;
+}
+.card-footer {
+  @apply p-4 bg-slate-50 dark:bg-slate-800/50 rounded-b-xl;
+}
+.payment-info {
+  @apply flex justify-between items-center;
+}
+.action-link {
+  @apply text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline;
+}
+.status-badge {
+  @apply inline-block px-3 py-1 rounded-full text-xs font-semibold;
 }
 </style>

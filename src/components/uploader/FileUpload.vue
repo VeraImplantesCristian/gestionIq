@@ -49,8 +49,7 @@
 </template>
 
 <script setup>
-import { ref, onUnmounted } from 'vue';
-// Importaciones con las rutas corregidas según tu estructura de proyecto
+import { ref, onUnmounted, computed } from 'vue'; // Añadimos 'computed'
 import { supabase } from '../../services/supabase';
 import { useB2Upload } from './useB2Upload';
 import { useDeviceDetection } from '../../composables/useDeviceDetection';
@@ -79,6 +78,11 @@ const uploadProgress = ref({ current: 0, total: 0 });
 const isWebcamModalOpen = ref(false);
 const isChainShotActive = ref(false);
 const isDragging = ref(false);
+
+// --- NUEVA PROPIEDAD COMPUTADA ---
+// Esta propiedad computada simplemente lee el estado de 'selectedFiles'
+// y devuelve 'true' si hay archivos, o 'false' si no.
+const hasFiles = computed(() => selectedFiles.value.length > 0);
 
 // --- LÓGICA DE MANEJO DE ARCHIVOS ---
 const addFiles = (files) => {
@@ -134,13 +138,10 @@ const startUpload = async () => {
   for (const originalFile of selectedFiles.value) {
     uploadProgress.value.current++;
     try {
-      // 1. Generamos UN solo nombre base aquí en el frontend.
       const baseName = crypto.randomUUID();
-      
       const fileExtension = originalFile.name.split('.').pop() || 'tmp';
       const thumbnailFile = await resizeImage(originalFile);
 
-      // Función auxiliar para llamar a la Edge Function
       const getPresignedUrl = (file, ext, isThumb = false) => {
         return supabase.functions.invoke('b2-presigned-url', {
           body: {
@@ -149,7 +150,7 @@ const startUpload = async () => {
             contentType: file.type,
             extension: ext,
             isThumb: isThumb,
-            baseName: baseName // 2. Enviamos el mismo nombre base en ambas peticiones.
+            baseName: baseName
           }
         });
       };
@@ -207,9 +208,9 @@ const clear = () => {
 
 onUnmounted(clear);
 
-defineExpose({ startUpload, clear });
+// Exponemos las funciones que el padre necesita, AÑADIENDO 'hasFiles'.
+defineExpose({ startUpload, clear, hasFiles });
 </script>
-
 <style scoped>
 .uploader-container {
   width: 100%;

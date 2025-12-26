@@ -84,7 +84,6 @@ import GenerateLinkModal from '../components/GenerateLinkModal.vue';
 import { DocumentTextIcon } from '@heroicons/vue/24/outline';
 import ReportTable from '../components/ReportTable.vue';
 
-// --- LÓGICA DE ESTADO Y MÉTODOS (LA MAYORÍA SIN CAMBIOS) ---
 const headerConfig = inject('header-config');
 const openNewSurgeryModal = () => { isNewSurgeryModalVisible.value = true; };
 
@@ -123,24 +122,17 @@ const selectedReporteForLink = ref(null);
 const isExporting = ref(false);
 const selectedReportes = ref(new Set());
 
-const isReportSelected = (reporteId) => selectedReportes.value.has(reporteId);
-
 const toggleSelection = (reporteId) => {
-  if (isReportSelected(reporteId)) {
+  if (selectedReportes.value.has(reporteId)) {
     selectedReportes.value.delete(reporteId);
   } else {
     selectedReportes.value.add(reporteId);
   }
 };
 
-const areAllOnPageSelected = computed(() => {
-  const pageIds = reportes.value.map(r => r.id);
-  return pageIds.length > 0 && pageIds.every(id => selectedReportes.value.has(id));
-});
-
 const toggleSelectAll = () => {
   const pageIds = reportes.value.map(r => r.id);
-  if (areAllOnPageSelected.value) {
+  if (reportes.value.length > 0 && pageIds.every(id => selectedReportes.value.has(id))) {
     pageIds.forEach(id => selectedReportes.value.delete(id));
   } else {
     pageIds.forEach(id => selectedReportes.value.add(id));
@@ -152,22 +144,25 @@ const fetchReportes = async () => {
   error.value = null;
   try {
     const params = {
-      p_paciente: activeFilters.value.paciente,
-      p_medico: activeFilters.value.medico,
-      p_instrumentador: activeFilters.value.instrumentador,
-      p_estado: activeFilters.value.estado,
-      p_start_date: activeFilters.value.startDate || null,
-      p_end_date: activeFilters.value.endDate || null,
-      p_date_filter_field: activeFilters.value.dateFilterField,
-      p_rating_puntualidad_max: activeFilters.value.rating_puntualidad_max,
-      p_rating_condiciones_max: activeFilters.value.rating_condiciones_max,
-      p_rating_asesoramiento_max: activeFilters.value.rating_asesoramiento_max,
-      p_rating_evaluacion_general_max: activeFilters.value.rating_evaluacion_general_max,
+      p_paciente: activeFilters.value.paciente ?? null,
+      p_medico: activeFilters.value.medico ?? null,
+      p_instrumentador: activeFilters.value.instrumentador ?? null,
+      p_estado: activeFilters.value.estado ?? 'todos',
+      p_start_date: activeFilters.value.startDate ?? null,
+      p_end_date: activeFilters.value.endDate ?? null,
+      p_date_filter_field: activeFilters.value.dateFilterField ?? 'fecha_cirugia',
+      p_rating_puntualidad_max: activeFilters.value.rating_puntualidad_max ?? null,
+      p_rating_condiciones_max: activeFilters.value.rating_condiciones_max ?? null,
+      p_rating_asesoramiento_max: activeFilters.value.rating_asesoramiento_max ?? null,
+      p_rating_evaluacion_general_max: activeFilters.value.rating_evaluacion_general_max ?? null,
       p_page: currentPage.value,
       p_items_per_page: itemsPerPage.value
     };
+    
     const { data, error: rpcError } = await supabase.rpc('search_reportes_avanzado', params);
+    
     if (rpcError) throw rpcError;
+    
     if (data && data.length > 0) {
       reportes.value = data;
       totalReportes.value = data[0].total_count;
@@ -215,17 +210,94 @@ const getAllFilteredReportes = async () => {
       p_rating_condiciones_max: activeFilters.value.rating_condiciones_max,
       p_rating_asesoramiento_max: activeFilters.value.rating_asesoramiento_max,
       p_rating_evaluacion_general_max: activeFilters.value.rating_evaluacion_general_max,
+      p_page: 1,
+      p_items_per_page: 9999 // Un número grande para obtener todos
   };
   const { data, error } = await supabase.rpc('search_reportes_avanzado', params);
   if (error) throw error;
   return data;
 };
 
-const exportarListaPDF = async () => { /* ... (sin cambios) ... */ };
-const exportarTrazabilidadPDF = async () => { /* ... (sin cambios) ... */ };
-const exportarResumenPacientePDF = (reporte) => { /* ... (sin cambios) ... */ };
+const exportarListaPDF = async () => {
+  isExporting.value = true;
+  toast.info("Generando lista de reportes...");
+  try {
+    const allReportes = await getAllFilteredReportes();
+    const doc = new jsPDF();
+    doc.text("Lista de Reportes Filtrados", 14, 16);
+    autoTable(doc, {
+      startY: 22,
+      head: [['Fecha', 'Paciente', 'Médico', 'Instrumentador', 'Estado']],
+      body: allReportes.map(r => [
+        formatDate(r.fecha_cirugia),
+        r.paciente,
+        r.medico,
+        r.instrumentador_completado,
+        r.estado
+      ]),
+    });
+    doc.save(`Lista_Reportes_${new Date().toISOString().slice(0,10)}.pdf`);
+    toast.success("Lista exportada con éxito.");
+  } catch (err) {
+    toast.error("Error al exportar la lista: " + err.message);
+  } finally {
+    isExporting.value = false;
+  }
+};
 
-// ========= INICIO DE LA MEJORA: AÑADIR INSTRUMENTADOR AL PDF =========
+const exportarTrazabilidadPDF = async () => {
+  isExporting.value = true;
+  toast.info("Generando reporte de trazabilidad...");
+  try {
+    const allReportes = await getAllFilteredReportes();
+    const doc = new jsPDF('p', 'pt', 'a4');
+    const pageHeight = doc.internal.pageSize.height;
+    let y = 40;
+
+    doc.setFontSize(18);
+    doc.text("Reporte de Trazabilidad", 40, y);
+    y += 20;
+
+    allReportes.forEach(reporte => {
+      const blockHeight = 80; 
+      if (y + blockHeight > pageHeight - 40) {
+        doc.addPage();
+        y = 40;
+      }
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${formatDate(reporte.fecha_cirugia)} - ${reporte.paciente}`, 40, y);
+      y += 15;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`ID Cirugía: ${reporte.id_cirugia}`, 40, y);
+      y += 15;
+      doc.text(`Médico: ${reporte.medico}`, 40, y);
+      y += 15;
+      doc.text(`Instrumentador: ${reporte.instrumentador_completado}`, 40, y);
+      y += 25;
+    });
+
+    doc.save(`Trazabilidad_${new Date().toISOString().slice(0,10)}.pdf`);
+    toast.success("Reporte de trazabilidad exportado.");
+  } catch (err) {
+    toast.error("Error al exportar trazabilidad: " + err.message);
+  } finally {
+    isExporting.value = false;
+  }
+};
+
+const exportarResumenPacientePDF = (reporte) => {
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text(`Resumen para ${reporte.paciente}`, 14, 22);
+  doc.setFontSize(10);
+  doc.text(`Fecha: ${formatDate(reporte.fecha_cirugia)}`, 14, 30);
+  doc.text(`Médico: ${reporte.medico}`, 14, 36);
+  doc.text(`Consumo: ${reporte.consumo_realizado || 'No reportado'}`, 14, 42);
+  doc.save(`Resumen_${reporte.paciente}.pdf`);
+};
+
 const exportarSeleccionPDF = async () => {
   if (selectedReportes.value.size === 0) {
     toast.info("No hay reportes seleccionados para exportar.");
@@ -236,7 +308,6 @@ const exportarSeleccionPDF = async () => {
 
   try {
     const idsToFetch = Array.from(selectedReportes.value);
-    // 1. Pedimos el campo 'instrumentador_completado' en la consulta.
     const { data: reportesSeleccionados, error } = await supabase
       .from('reportes')
       .select('paciente, tipo_cirugia, observaciones, instrumentador_completado')
@@ -259,7 +330,6 @@ const exportarSeleccionPDF = async () => {
       const observaciones = reporte.observaciones || 'Sin observaciones.';
       doc.setFontSize(9);
       const obsLines = doc.splitTextToSize(observaciones, contentWidth);
-      // Se ajusta la altura del bloque para el nuevo campo.
       const blockHeight = 25 + (obsLines.length * 4) + 10;
 
       if (y + blockHeight > pageHeight - margin) {
@@ -276,9 +346,8 @@ const exportarSeleccionPDF = async () => {
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100);
       doc.text(reporte.tipo_cirugia || 'N/A', margin, y);
-      y += 5; // Espacio reducido
+      y += 5;
 
-      // 2. Añadimos el nombre del instrumentador al PDF.
       doc.setFont('helvetica', 'italic');
       doc.text(reporte.instrumentador_completado || 'Instrumentador no asignado', margin, y);
       doc.setFont('helvetica', 'normal');
@@ -307,7 +376,6 @@ const exportarSeleccionPDF = async () => {
     isExporting.value = false;
   }
 };
-// ========= FIN DE LA MEJORA =========
 
 const closeNewSurgeryModal = () => { isNewSurgeryModalVisible.value = false; };
 const openDrawer = (reporte) => {
