@@ -144,17 +144,17 @@ const fetchReportes = async () => {
   error.value = null;
   try {
     const params = {
-      p_paciente: activeFilters.value.paciente ?? null,
-      p_medico: activeFilters.value.medico ?? null,
-      p_instrumentador: activeFilters.value.instrumentador ?? null,
-      p_estado: activeFilters.value.estado ?? 'todos',
-      p_start_date: activeFilters.value.startDate ?? null,
-      p_end_date: activeFilters.value.endDate ?? null,
-      p_date_filter_field: activeFilters.value.dateFilterField ?? 'fecha_cirugia',
-      p_rating_puntualidad_max: activeFilters.value.rating_puntualidad_max ?? null,
-      p_rating_condiciones_max: activeFilters.value.rating_condiciones_max ?? null,
-      p_rating_asesoramiento_max: activeFilters.value.rating_asesoramiento_max ?? null,
-      p_rating_evaluacion_general_max: activeFilters.value.rating_evaluacion_general_max ?? null,
+      p_paciente: activeFilters.value.paciente || null,
+      p_medico: activeFilters.value.medico || null,
+      p_instrumentador: activeFilters.value.instrumentador || null,
+      p_estado: activeFilters.value.estado || 'todos',
+      p_start_date: activeFilters.value.startDate || null,
+      p_end_date: activeFilters.value.endDate || null,
+      p_date_filter_field: activeFilters.value.dateFilterField || 'fecha_cirugia',
+      p_rating_puntualidad_max: activeFilters.value.rating_puntualidad_max || null,
+      p_rating_condiciones_max: activeFilters.value.rating_condiciones_max || null,
+      p_rating_asesoramiento_max: activeFilters.value.rating_asesoramiento_max || null,
+      p_rating_evaluacion_general_max: activeFilters.value.rating_evaluacion_general_max || null,
       p_page: currentPage.value,
       p_items_per_page: itemsPerPage.value
     };
@@ -199,19 +199,19 @@ const formatDate = (dateString) => {
 
 const getAllFilteredReportes = async () => {
   const params = {
-      p_paciente: activeFilters.value.paciente,
-      p_medico: activeFilters.value.medico,
-      p_instrumentador: activeFilters.value.instrumentador,
-      p_estado: activeFilters.value.estado,
+      p_paciente: activeFilters.value.paciente || null,
+      p_medico: activeFilters.value.medico || null,
+      p_instrumentador: activeFilters.value.instrumentador || null,
+      p_estado: activeFilters.value.estado || 'todos',
       p_start_date: activeFilters.value.startDate || null,
       p_end_date: activeFilters.value.endDate || null,
-      p_date_filter_field: activeFilters.value.dateFilterField,
-      p_rating_puntualidad_max: activeFilters.value.rating_puntualidad_max,
-      p_rating_condiciones_max: activeFilters.value.rating_condiciones_max,
-      p_rating_asesoramiento_max: activeFilters.value.rating_asesoramiento_max,
-      p_rating_evaluacion_general_max: activeFilters.value.rating_evaluacion_general_max,
+      p_date_filter_field: activeFilters.value.dateFilterField || 'fecha_cirugia',
+      p_rating_puntualidad_max: activeFilters.value.rating_puntualidad_max || null,
+      p_rating_condiciones_max: activeFilters.value.rating_condiciones_max || null,
+      p_rating_asesoramiento_max: activeFilters.value.rating_asesoramiento_max || null,
+      p_rating_evaluacion_general_max: activeFilters.value.rating_evaluacion_general_max || null,
       p_page: 1,
-      p_items_per_page: 9999 // Un número grande para obtener todos
+      p_items_per_page: 9999
   };
   const { data, error } = await supabase.rpc('search_reportes_avanzado', params);
   if (error) throw error;
