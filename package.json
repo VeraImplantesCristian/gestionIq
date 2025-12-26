@@ -18,7 +18,7 @@
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
     "signature_pad": "^5.1.2",
-    "supabase": "^2.67.1",
+    "supabase": "^2.70.5",
     "uuid": "^13.0.0",
     "vue": "^3.4.21",
     "vue-chartjs": "^5.3.2",
