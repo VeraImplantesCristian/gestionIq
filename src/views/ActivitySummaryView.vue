@@ -33,7 +33,7 @@
       </div>
     </div>
 
-    <!-- ESTADO 2: VISTA DE DATOS (Rediseñada) -->
+    <!-- ESTADO 2: VISTA DE DATOS (Rediseñada con Paginación) -->
     <div v-else class="max-w-7xl mx-auto">
       <header class="mb-8">
         <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">Tu Resumen de Actividad</h1>
@@ -53,8 +53,8 @@
       </div>
 
       <!-- Grilla de Tarjetas de Reporte -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div v-for="report in activityData" :key="report.id" class="report-card">
+      <div v-if="paginatedActivity.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div v-for="report in paginatedActivity" :key="report.id" class="report-card">
           <div class="card-header">
             <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"></path></svg>
@@ -73,19 +73,10 @@
           </div>
 
           <div class="card-footer">
-            <!-- Lógica para mostrar el estado de pago -->
             <div v-if="report.estado === 'Enviado'">
               <div v-if="report.estado_pago === 'Pagado'" class="payment-info">
                 <span class="status-badge bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-300">Pagado</span>
-                
-                <!-- Usamos un v-if para mostrar el enlace solo si existe un comprobante. -->
-                <a 
-                  v-if="report.comprobante_object_key" 
-                  :href="getComprobanteUrl(report.comprobante_object_key)" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  class="action-link"
-                >
+                <a v-if="report.comprobante_object_key" :href="getComprobanteUrl(report.comprobante_object_key)" target="_blank" rel="noopener noreferrer" class="action-link">
                   Ver recibo ↗
                 </a>
               </div>
@@ -99,6 +90,19 @@
           </div>
         </div>
       </div>
+      <div v-else class="text-center p-10 bg-white dark:bg-slate-800 rounded-xl shadow">
+        <p class="text-slate-500">No se encontró actividad para mostrar.</p>
+      </div>
+
+      <!-- Controles de Paginación -->
+      <PaginationControls 
+        v-if="totalItems > itemsPerPage"
+        :current-page="currentPage"
+        :total-items="totalItems"
+        :items-per-page="itemsPerPage"
+        @page-changed="goToPage"
+        class="mt-8"
+      />
     </div>
   </div>
 </template>
@@ -108,13 +112,15 @@ import { ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { supabase } from '../services/supabase';
 import { useToast } from 'vue-toastification';
+import PaginationControls from '../components/PaginationControls.vue';
 
-// --- ESTADO DEL COMPONENTE ---
 const isAuthenticated = ref(false);
 const isLoading = ref(false);
 const error = ref(null);
 const dni = ref('');
-const activityData = ref([]);
+const allActivityData = ref([]); // Almacena TODA la actividad
+const currentPage = ref(1);
+const itemsPerPage = ref(9); // 9 para que se vea bien en una grilla de 3 columnas
 
 const route = useRoute();
 const toast = useToast();
@@ -122,28 +128,22 @@ const toast = useToast();
 const token = route.params.token;
 const R2_PUBLIC_URL = import.meta.env.VITE_R2_PUBLIC_URL;
 
-// --- LÓGICA DE AUTENTICACIÓN ---
 const authenticate = async () => {
   if (!dni.value.trim()) {
     error.value = "El DNI es requerido.";
     return;
   }
-
   isLoading.value = true;
   error.value = null;
-
   try {
     const cleanDni = dni.value.trim().replace(/\D/g, '');
-
     const { data, error: rpcError } = await supabase.rpc('autenticar_y_obtener_resumen', {
       p_token: token,
       p_dni: cleanDni
     });
-
     if (rpcError) throw rpcError;
-
     if (data) {
-      activityData.value = data;
+      allActivityData.value = data;
       isAuthenticated.value = true;
       toast.success("Acceso concedido.");
     } else {
@@ -151,7 +151,6 @@ const authenticate = async () => {
       dni.value = '';
       toast.error("Acceso denegado.");
     }
-
   } catch (err) {
     console.error("Error en la autenticación:", err);
     error.value = "Ocurrió un error inesperado. Intentá de nuevo.";
@@ -161,18 +160,31 @@ const authenticate = async () => {
   }
 };
 
+// --- LÓGICA DE PAGINACIÓN ---
+const totalItems = computed(() => allActivityData.value.length);
+
+const paginatedActivity = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return allActivityData.value.slice(start, end);
+});
+
+const goToPage = (page) => {
+  currentPage.value = page;
+};
+
 // --- PROPIEDADES COMPUTADAS PARA LOS INDICADORES ---
 const totalCirugiasMes = computed(() => {
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
-  return activityData.value.filter(report => {
+  return allActivityData.value.filter(report => {
     const reportDate = new Date(report.fecha_cirugia);
     return reportDate.getMonth() === currentMonth && reportDate.getFullYear() === currentYear;
   }).length;
 });
 
 const pendientesDePago = computed(() => {
-  return activityData.value.filter(report => report.estado === 'Enviado' && report.estado_pago === 'Pendiente').length;
+  return allActivityData.value.filter(report => report.estado === 'Enviado' && report.estado_pago === 'Pendiente').length;
 });
 
 // --- FUNCIONES AUXILIARES DE FORMATO ---
@@ -198,7 +210,6 @@ const getComprobanteUrl = (objectKey) => {
 </script>
 
 <style scoped>
-/* Estilos para el formulario de DNI */
 .form-input {
   @apply w-full px-4 py-3 border border-slate-300 rounded-lg text-center text-lg;
   @apply dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100;
@@ -211,8 +222,6 @@ const getComprobanteUrl = (objectKey) => {
   @apply hover:bg-blue-700;
   @apply disabled:bg-slate-400 disabled:cursor-not-allowed;
 }
-
-/* Estilos para los nuevos indicadores */
 .stat-card {
   @apply bg-white dark:bg-slate-800 p-6 rounded-xl shadow;
 }
@@ -222,8 +231,6 @@ const getComprobanteUrl = (objectKey) => {
 .stat-value {
   @apply text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1;
 }
-
-/* Estilos para las nuevas tarjetas de reporte */
 .report-card {
   @apply bg-white dark:bg-slate-800 rounded-xl shadow flex flex-col transition-transform duration-200 hover:scale-[1.02];
 }
