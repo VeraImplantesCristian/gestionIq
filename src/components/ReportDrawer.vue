@@ -9,7 +9,7 @@
         <!-- Contenido del Modal -->
         <div class="relative z-50 w-full max-w-3xl bg-white h-[90vh] flex flex-col rounded-lg shadow-xl dark:bg-slate-800">
           
-          <!-- Cabecera (sin cambios) -->
+          <!-- Cabecera -->
           <div class="p-4 border-b flex justify-between items-center flex-shrink-0 dark:border-slate-700">
             <h2 class="text-xl font-bold text-gray-800 dark:text-slate-100">
               {{ isEditing ? 'Editando Reporte' : 'Detalles Completos del Reporte' }}
@@ -17,10 +17,7 @@
             <button @click="cancelEdit" class="p-2 rounded-full text-gray-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700">&times;</button>
           </div>
 
-          <!-- 
-            Barra de Pestañas Principal (simplificada).
-            Solo se muestra en modo de "lectura".
-          -->
+          <!-- Barra de Pestañas Principal -->
           <div v-if="!isEditing" class="px-6 pt-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
             <div class="flex space-x-4">
               <button @click="activeTab = 'details'" :class="['py-2 px-3 text-sm font-semibold rounded-t-md', activeTab === 'details' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200']">
@@ -112,10 +109,7 @@
               </section>
             </div>
 
-            <!-- 
-              Contenedor para las nuevas pestañas secundarias.
-              Se muestra solo si no estamos editando y la pestaña 'evidence' está activa.
-            -->
+            <!-- Contenedor para las pestañas secundarias -->
             <div v-show="activeTab === 'evidence' && !isEditing">
               <ReportTabs 
                 :report-id="formData.id"
@@ -126,12 +120,23 @@
 
           <!-- Pie del Modal -->
           <div class="p-4 border-t flex justify-between items-center flex-shrink-0 dark:border-slate-700">
-            <button v-if="!isEditing" @click="isEditing = true" class="font-semibold px-4 py-2 rounded-md text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
-              Editar Reporte
-            </button>
-            <button v-else @click="cancelEdit" class="font-semibold px-4 py-2 rounded-md text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
-              Cancelar Edición
-            </button>
+            <div class="flex items-center space-x-3">
+              <button v-if="!isEditing" @click="isEditing = true" class="font-semibold px-4 py-2 rounded-md text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
+                Editar Reporte
+              </button>
+              <button v-else @click="cancelEdit" class="font-semibold px-4 py-2 rounded-md text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
+                Cancelar Edición
+              </button>
+
+              <div v-if="!isEditing">
+                <button v-if="!hasIntervention" @click="isInterventionModalOpen = true" class="font-semibold px-4 py-2 rounded-md text-purple-600 hover:bg-purple-100 dark:text-purple-400 dark:hover:bg-purple-900/30">
+                  🟣 Registrar Intervención Clave
+                </button>
+                <span v-else class="font-semibold px-4 py-2 rounded-md text-purple-400 dark:text-purple-500 text-sm cursor-default">
+                  ✓ Intervención Registrada
+                </span>
+              </div>
+            </div>
             
             <div class="flex items-center space-x-3">
               <button v-if="isEditing" @click="saveChanges" :disabled="isSaving" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-md text-sm hover:bg-blue-700 disabled:bg-slate-400 flex items-center">
@@ -156,20 +161,26 @@
         :pdf-version="currentPdfVersion"
         ref="pdfComponentRef" />
     </div>
+
+    <RegistrarIntervencionModal
+      :show="isInterventionModalOpen"
+      :reporte="formData"
+      @close="isInterventionModalOpen = false"
+      @confirm="handleRegisterIntervention"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, watch, computed, defineAsyncComponent } from 'vue';
+import { ref, watch, defineAsyncComponent } from 'vue';
 import { supabase } from '../services/supabase.js';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useToast } from 'vue-toastification';
 
-// Se importa el nuevo componente de pestañas.
 import ReportTabs from './report-details/ReportTabs.vue';
+import RegistrarIntervencionModal from './admin/RegistrarIntervencionModal.vue';
 
-// Los componentes se cargan de forma asíncrona para optimizar.
 const EditableField = defineAsyncComponent(() => import('./EditableField.vue'));
 const RatingRow = defineAsyncComponent(() => import('./RatingRow.vue'));
 const ReportPDF = defineAsyncComponent(() => import('./ReportPDF.vue'));
@@ -183,26 +194,71 @@ const isEditing = ref(false);
 const isSaving = ref(false);
 const formData = ref(null);
 const currentPdfVersion = ref(null);
+const isInterventionModalOpen = ref(false);
+const hasIntervention = ref(false);
 
-// La lógica para cargar el historial de PDF y los eventos de la línea de tiempo
-// se ha eliminado de este componente. Ahora es responsabilidad de los componentes
-// hijos dentro de ReportTabs, manteniendo este archivo más limpio.
+const checkExistingIntervention = async (reporteId) => {
+  if (!reporteId) {
+    hasIntervention.value = false;
+    return;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('intervenciones_clave')
+      .select('id')
+      .eq('reporte_id', reporteId)
+      .maybeSingle(); // Usamos maybeSingle para evitar errores si no hay filas.
+    
+    hasIntervention.value = !!data && !error;
+  } catch (err) {
+    hasIntervention.value = false;
+  }
+};
 
 watch(() => props.show, (isVisible) => {
-  if (isVisible) {
-    // Al abrir, siempre se resetea a la pestaña de detalles.
+  if (isVisible && props.reporte) {
     activeTab.value = 'details';
     currentPdfVersion.value = null;
+    checkExistingIntervention(props.reporte.id);
   }
 });
 
 watch(() => props.reporte, (newReporte) => {
   if (newReporte) {
     formData.value = JSON.parse(JSON.stringify(newReporte));
+    checkExistingIntervention(newReporte.id);
   } else {
     formData.value = null;
+    hasIntervention.value = false;
   }
 }, { deep: true, immediate: true });
+
+const handleRegisterIntervention = async () => {
+  if (!formData.value) return;
+  
+  const loadingToastId = toast.info("Registrando intervención...", { timeout: false });
+  try {
+    const { data, error } = await supabase.rpc('registrar_intervencion_clave', {
+      p_reporte_id: formData.value.id,
+      p_instrumentador_dni: formData.value.instrumentador_dni
+    });
+
+    if (error) throw error;
+
+    if (data) {
+      toast.update(loadingToastId, { content: "¡Intervención Clave registrada con éxito!", options: { type: 'success', timeout: 4000 } });
+      hasIntervention.value = true;
+    } else {
+      toast.update(loadingToastId, { content: "Esta cirugía ya tenía una intervención registrada.", options: { type: 'info', timeout: 4000 } });
+      hasIntervention.value = true;
+    }
+
+  } catch (err) {
+    toast.update(loadingToastId, { content: `Error al registrar: ${err.message}`, options: { type: 'error', timeout: 5000 } });
+  } finally {
+    isInterventionModalOpen.value = false;
+  }
+};
 
 const close = () => {
   isEditing.value = false;
@@ -219,15 +275,15 @@ const cancelEdit = () => {
   }
 };
 
-// La función saveChanges se mantiene intacta, incluyendo el parche
-// para eliminar las columnas que no existen en la tabla 'reportes'.
 const saveChanges = async () => {
   if (!formData.value) return;
   isSaving.value = true;
   try {
     const updateData = { ...formData.value };
+    // Parche para eliminar columnas que no existen en la tabla 'reportes'
     delete updateData.total_count;
     delete updateData.short_links;
+    delete updateData.instrumentador_nombre; // Esta columna viene del JOIN, no debe estar en el UPDATE
     const { id, created_at, token, url_firma, instrumentadores, ...finalUpdateData } = updateData;
     const { error } = await supabase.from('reportes').update(finalUpdateData).eq('id', id);
     if (error) throw error;
@@ -244,7 +300,6 @@ const saveChanges = async () => {
 const isGeneratingPdf = ref(false);
 const pdfComponentRef = ref(null);
 
-// La función para generar el PDF se mantiene intacta.
 const generatePDF = async () => {
   if (!props.reporte) return;
   isGeneratingPdf.value = true;
@@ -275,7 +330,6 @@ const generatePDF = async () => {
   }
 };
 
-// La función para descargar la firma se mantiene intacta.
 const downloadSignature = () => {
   if (!formData.value?.url_firma) return;
   fetch(formData.value.url_firma)
@@ -294,7 +348,6 @@ const downloadSignature = () => {
     .catch(() => toast.error('No se pudo descargar la firma.'));
 };
 
-// La función de formato de fecha se mantiene intacta.
 const formatDateTime = (dateString) => {
   if (!dateString) return 'N/A';
   return new Date(dateString).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' hs';

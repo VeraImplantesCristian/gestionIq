@@ -1,15 +1,11 @@
 <!-- src/views/InstrumentadoresView.vue -->
 <template>
   <div class="p-4 sm:p-6 lg:p-8">
-    <!-- Barra de Búsqueda -->
-    <div class="mb-6">
-      <input 
-        v-model="searchTerm"
-        type="text"
-        placeholder="Buscar por nombre o DNI..."
-        class="block w-full md:w-1/3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-      />
-    </div>
+    <InstrumentadoresFilters 
+      v-model="filters" 
+      :export-disabled="loading || processedInstrumentadores.length === 0"
+      @export="handleExport"
+    />
 
     <!-- Estado de Carga -->
     <div v-if="loading" class="space-y-4">
@@ -28,46 +24,33 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
           <thead class="bg-gray-50 dark:bg-slate-700">
             <tr>
-              <th scope="col" @click="sortBy('nombre_completo')" class="table-header" :class="{ 'active-sort': sortKey === 'nombre_completo' }">
-                Nombre Completo <span v-if="sortKey === 'nombre_completo'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
-              <th scope="col" class="table-header-static text-center">Teléfono</th>
-              <th scope="col" @click="sortBy('fichas_enviadas')" class="table-header text-center" :class="{ 'active-sort': sortKey === 'fichas_enviadas' }">
-                Fichas Enviadas <span v-if="sortKey === 'fichas_enviadas'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
-              <th scope="col" @click="sortBy('promedio_valoracion_manual')" class="table-header text-center" :class="{ 'active-sort': sortKey === 'promedio_valoracion_manual' }">
-                Prom. Manual (1-10) <span v-if="sortKey === 'promedio_valoracion_manual'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
-              <th scope="col" @click="sortBy('promedio_puntaje_iq')" class="table-header text-center" :class="{ 'active-sort': sortKey === 'promedio_puntaje_iq' }">
-                Prom. Digital (1-5) <span v-if="sortKey === 'promedio_puntaje_iq'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
-              <th scope="col" class="table-header-static text-center">Acciones</th>
+              <th scope="col" class="table-header">Nombre Completo</th>
+              <th scope="col" class="table-header text-center">Teléfono</th>
+              <th scope="col" class="table-header text-center">Fichas Enviadas</th>
+              <th scope="col" class="table-header text-center">IVO (90d)</th>
+              <th scope="col" class="table-header text-center">Acciones</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200 dark:bg-slate-800 dark:divide-slate-700">
             <tr v-if="paginatedInstrumentadores.length === 0">
-              <td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-slate-400">No se encontraron instrumentadores.</td>
+              <td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-slate-400">No se encontraron instrumentadores que coincidan con los filtros.</td>
             </tr>
             <tr v-for="iq in paginatedInstrumentadores" :key="iq.dni">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-slate-100">{{ capitalizeName(iq.nombre_completo) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300 text-center">{{ iq.telefono || 'N/A' }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300 text-center">{{ iq.fichas_enviadas }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-center" :class="getPromedioColor(iq.promedio_valoracion_manual, 10)">
-                {{ iq.promedio_valoracion_manual.toFixed(2) }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-center" :class="getPromedioColor(iq.promedio_puntaje_iq, 5)">
-                {{ iq.promedio_puntaje_iq.toFixed(2) }}
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-center" :class="getIvoColor(iq.ivo_score)">
+                {{ iq.ivo_score.toFixed(2) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 text-center">
                 <div class="inline-flex items-center rounded-md shadow-sm bg-slate-100 dark:bg-slate-700/50 p-0.5">
+                  <button @click="openStatsModal(iq)" title="Ver estadísticas operativas" class="action-button">
+                    <ChartBarIcon class="h-5 w-5" />
+                  </button>
                   <button @click="copyPermanentLink(iq)" title="Copiar enlace de acceso permanente" class="action-button">
                     <KeyIcon class="h-5 w-5" />
                   </button>
-                  <button @click="copyActivityLink(iq.dni, 3)" title="Copiar enlace temporal (3 días)" class="action-button">
-                    <LinkIcon class="h-5 w-5" />
-                  </button>
                 </div>
-                <button @click="openWeeklyScoreModal(iq)" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300">Valorar</button>
                 <button @click="openEditModal(iq)" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Editar</button>
               </td>
             </tr>
@@ -86,24 +69,26 @@
 
   <!-- Modales -->
   <EditInstrumentadorModal :show="isEditModalOpen" :instrumentador="selectedInstrumentador" @close="isEditModalOpen = false" @updated="handleUpdate"/>
-  <RecordWeeklyScoreModal :show="isWeeklyScoreModalOpen" :instrumentador="selectedInstrumentador" @close="isWeeklyScoreModalOpen = false" @created="handleUpdate"/>
+  <EstadisticasInstrumentadorModal :show="isStatsModalOpen" :instrumentador="selectedInstrumentador" @close="isStatsModalOpen = false" />
   <NewInstrumentadorModal :show="isNewModalOpen" @close="isNewModalOpen = false" @created="handleUpdate"/>
   <ImportInstrumentadoresModal :show="isImportModalOpen" @close="isImportModalOpen = false" @imported="handleUpdate"/>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, inject, h, markRaw, computed } from 'vue';
+import { ref, onMounted, onUnmounted, inject, h, markRaw, computed, watch } from 'vue';
 import { supabase } from '../services/supabase.js';
 import { useToast } from 'vue-toastification';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 import SkeletonLoader from '../components/SkeletonLoader.vue';
 import EditInstrumentadorModal from '../components/EditInstrumentadorModal.vue';
-import RecordWeeklyScoreModal from '../components/RecordWeeklyScoreModal.vue';
+import EstadisticasInstrumentadorModal from '../components/EstadisticasInstrumentadorModal.vue';
 import NewInstrumentadorModal from '../components/NewInstrumentadorModal.vue';
 import ImportInstrumentadoresModal from '../components/ImportInstrumentadoresModal.vue';
 import PaginationControls from '../components/PaginationControls.vue';
-
-import { LinkIcon, KeyIcon } from '@heroicons/vue/24/outline';
+import InstrumentadoresFilters from '../components/InstrumentadoresFilters.vue';
+import { KeyIcon, ChartBarIcon } from '@heroicons/vue/24/outline';
 
 const headerConfig = inject('header-config');
 const isNewModalOpen = ref(false);
@@ -128,62 +113,63 @@ const instrumentadores = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const isEditModalOpen = ref(false);
-const isWeeklyScoreModalOpen = ref(false);
+const isStatsModalOpen = ref(false);
 const selectedInstrumentador = ref(null);
-const searchTerm = ref('');
-const sortKey = ref('nombre_completo');
-const sortDirection = ref('asc');
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
+
+const filters = ref({
+  searchTerm: '',
+  sortBy: 'nombre_completo',
+  sortDir: 'asc',
+  minIvo: '',
+  maxIvo: '',
+});
 
 const capitalizeName = (name) => {
   if (!name) return '';
   return name.replace(/\b\w/g, char => char.toUpperCase());
 };
 
-const filteredInstrumentadores = computed(() => {
-  if (!searchTerm.value) return instrumentadores.value;
-  const term = searchTerm.value.toLowerCase();
-  return instrumentadores.value.filter(iq => 
-    iq.nombre_completo.toLowerCase().includes(term) ||
-    (iq.dni && String(iq.dni).toLowerCase().includes(term))
-  );
-});
-
-const sortedInstrumentadores = computed(() => {
-  const sorted = [...filteredInstrumentadores.value];
-  if (sortKey.value) {
-    sorted.sort((a, b) => {
-      let valA = a[sortKey.value];
-      let valB = b[sortKey.value];
-      if (typeof valA === 'string') valA = valA.toLowerCase();
-      if (typeof valB === 'string') valB = valB.toLowerCase();
-      let comparison = 0;
-      if (valA > valB) comparison = 1;
-      else if (valA < valB) comparison = -1;
-      return sortDirection.value === 'asc' ? comparison : -comparison;
-    });
+const processedInstrumentadores = computed(() => {
+  let processed = [...instrumentadores.value];
+  if (filters.value.searchTerm) {
+    const term = filters.value.searchTerm.toLowerCase();
+    processed = processed.filter(iq => 
+      iq.nombre_completo.toLowerCase().includes(term) ||
+      (iq.dni && String(iq.dni).toLowerCase().includes(term))
+    );
   }
-  return sorted;
+  if (filters.value.minIvo) {
+    processed = processed.filter(iq => iq.ivo_score >= parseFloat(filters.value.minIvo));
+  }
+  if (filters.value.maxIvo) {
+    processed = processed.filter(iq => iq.ivo_score <= parseFloat(filters.value.maxIvo));
+  }
+  processed.sort((a, b) => {
+    let valA = a[filters.value.sortBy];
+    let valB = b[filters.value.sortBy];
+    if (typeof valA === 'string') valA = valA.toLowerCase();
+    if (typeof valB === 'string') valB = valB.toLowerCase();
+    let comparison = 0;
+    if (valA > valB) comparison = 1;
+    else if (valA < valB) comparison = -1;
+    return filters.value.sortDir === 'asc' ? comparison : -comparison;
+  });
+  return processed;
 });
 
 const paginatedInstrumentadores = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value;
   const end = start + itemsPerPage.value;
-  return sortedInstrumentadores.value.slice(start, end);
+  return processedInstrumentadores.value.slice(start, end);
 });
 
-const totalItems = computed(() => sortedInstrumentadores.value.length);
+const totalItems = computed(() => processedInstrumentadores.value.length);
 
-const sortBy = (key) => {
-  if (sortKey.value === key) {
-    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
-  } else {
-    sortKey.value = key;
-    sortDirection.value = 'asc';
-  }
+watch(filters, () => {
   currentPage.value = 1;
-};
+}, { deep: true });
 
 const goToPage = (page) => {
   currentPage.value = page;
@@ -204,23 +190,32 @@ const fetchInstrumentadores = async () => {
   }
 };
 
-const getPromedioColor = (promedio, escala) => {
-  const p = (promedio / escala) * 100;
-  if (p >= 90) return 'text-green-500 dark:text-green-400';
-  if (p >= 80) return 'text-yellow-500 dark:text-yellow-400';
-  if (p >= 65) return 'text-orange-500 dark:text-orange-400';
-  if (p > 0) return 'text-red-500 dark:text-red-400';
+// --- INICIO DE LA MODIFICACIÓN ---
+// Se actualiza esta función para que los colores y umbrales coincidan
+// con las 4 categorías definidas (Destacado, Correcto, Inestable, Crítico).
+const getIvoColor = (score) => {
+  if (score >= 8.0) { // Destacado
+    return 'text-green-500 dark:text-green-400';
+  } else if (score >= 5.0) { // Correcto
+    return 'text-blue-500 dark:text-blue-400';
+  } else if (score >= 3.0) { // Inestable
+    return 'text-yellow-500 dark:text-yellow-400';
+  } else if (score >= 0) { // Crítico
+    return 'text-red-500 dark:text-red-400';
+  }
+  // Por defecto, para puntajes 0 o negativos (si fuera posible)
   return 'text-gray-500 dark:text-gray-400';
 };
+// --- FIN DE LA MODIFICACIÓN ---
 
 const openEditModal = (instrumentador) => {
   selectedInstrumentador.value = instrumentador;
   isEditModalOpen.value = true;
 };
 
-const openWeeklyScoreModal = (instrumentador) => {
+const openStatsModal = (instrumentador) => {
   selectedInstrumentador.value = instrumentador;
-  isWeeklyScoreModalOpen.value = true;
+  isStatsModalOpen.value = true;
 };
 
 const handleUpdate = () => {
@@ -228,83 +223,52 @@ const handleUpdate = () => {
   toast.success('Lista de instrumentadores actualizada.');
 };
 
+function handleExport() {
+  toast.info("Generando reporte de Excel...", { timeout: 2000 });
+  const dataToExport = processedInstrumentadores.value.map(iq => ({
+    'Nombre Completo': capitalizeName(iq.nombre_completo),
+    'DNI': iq.dni,
+    'Teléfono': iq.telefono || 'N/A',
+    'Fichas Enviadas (Total)': iq.fichas_enviadas,
+    'IVO (90 días)': parseFloat(iq.ivo_score.toFixed(2))
+  }));
+  const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Instrumentadores');
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+  const fileName = `Reporte_Instrumentadores_${new Date().toISOString().slice(0,10)}.xlsx`;
+  saveAs(data, fileName);
+}
+
 const copyPermanentLink = async (instrumentador) => {
   let token = instrumentador.activity_token;
   const loadingToastId = toast.info("Procesando enlace...", { timeout: false });
-
   try {
-    // Si el instrumentador no tiene un token, lo generamos.
     if (!token) {
       toast.update(loadingToastId, { content: "Generando nuevo enlace permanente..." });
-      
-      const { data: newToken, error: rpcError } = await supabase.rpc('generar_activity_token', {
-        p_instrumentador_dni: instrumentador.dni
-      });
-
+      const { data: newToken, error: rpcError } = await supabase.rpc('generar_activity_token', { p_instrumentador_dni: instrumentador.dni });
       if (rpcError) throw rpcError;
       if (!newToken) throw new Error('La base de datos no devolvió el nuevo token.');
-      
       token = newToken;
-      // Actualizamos la lista local para que el cambio se refleje inmediatamente.
       const instIndex = instrumentadores.value.findIndex(i => i.dni === instrumentador.dni);
       if (instIndex !== -1) {
         instrumentadores.value[instIndex].activity_token = token;
       }
     }
-
     const url = `${window.location.origin}/resumen/${token}`;
     await navigator.clipboard.writeText(url);
-    
-    toast.update(loadingToastId, { 
-      content: "¡Enlace de acceso permanente copiado!", 
-      options: { type: 'success', timeout: 3000 } 
-    });
-
+    toast.update(loadingToastId, { content: "¡Enlace de acceso permanente copiado!", options: { type: 'success', timeout: 3000 } });
   } catch (err) {
     console.error('Error al copiar el enlace permanente:', err);
-    toast.update(loadingToastId, { 
-      content: `No se pudo procesar el enlace: ${err.message}`, 
-      options: { type: 'error', timeout: 5000 } 
-    });
-  }
-};
-
-const copyActivityLink = async (dni, days) => {
-  try {
-    const loadingToast = toast.info(`Generando enlace de ${days} días...`, { timeout: false });
-
-    const { data: token, error: rpcError } = await supabase.rpc('create_instrumentador_token', {
-      p_instrumentador_dni: dni,
-      p_dias_validez: days
-    });
-
-    if (rpcError) throw rpcError;
-    if (!token) throw new Error('No se pudo generar el token.');
-
-    const url = `${window.location.origin}/resumen/${token}`;
-    await navigator.clipboard.writeText(url);
-
-    toast.update(loadingToast, { 
-      content: `¡Enlace de ${days} días copiado!`, 
-      options: { type: 'success', timeout: 3000 } 
-    });
-
-  } catch (err) {
-    console.error('Error al copiar el enlace de actividad:', err);
-    toast.error(`No se pudo copiar el enlace: ${err.message}`);
+    toast.update(loadingToastId, { content: `No se pudo procesar el enlace: ${err.message}`, options: { type: 'error', timeout: 5000 } });
   }
 };
 </script>
 
 <style scoped>
 .table-header {
-  @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-slate-400 cursor-pointer transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-slate-600 select-none;
-}
-.table-header-static {
   @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-slate-400 select-none;
-}
-.active-sort {
-  @apply bg-gray-100 dark:bg-slate-600;
 }
 .action-button {
   @apply p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md transition-colors;

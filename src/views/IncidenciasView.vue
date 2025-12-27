@@ -3,7 +3,7 @@
   <div class="p-4 sm:p-6 lg:p-8">
     
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-slate-100">Gestión de Incidencias</h1>
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-slate-100">Gestión de Eventos</h1>
       <div class="flex items-center space-x-3">
         <button 
           @click="exportPDF" 
@@ -15,7 +15,7 @@
         </button>
         <button @click="isModalOpen = true" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-blue-700 flex items-center space-x-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-          <span>Nueva Incidencia</span>
+          <span>Nuevo Evento</span>
         </button>
       </div>
     </div>
@@ -47,12 +47,18 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200 dark:bg-slate-800 dark:divide-slate-700">
           <tr v-if="incidencias.length === 0">
-            <td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-slate-400">No se encontraron incidencias con los filtros actuales.</td>
+            <td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-slate-400">No se encontraron eventos con los filtros actuales.</td>
           </tr>
           <tr v-for="incidencia in incidencias" :key="incidencia.id">
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">{{ new Date(incidencia.created_at).toLocaleDateString() }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-slate-100">{{ incidencia.reportado_por || 'N/A' }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">{{ incidencia.tipo }}</td>
+            <!-- --- INICIO DE LA MODIFICACIÓN --- -->
+            <!-- 1. Se añade un indicador visual para las Intervenciones Clave. -->
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
+              <span v-if="incidencia.es_intervencion_clave" class="mr-2" title="Intervención Clave">🟣</span>
+              <span>{{ incidencia.tipo }}</span>
+            </td>
+            <!-- --- FIN DE LA MODIFICACIÓN --- -->
             <td class="px-6 py-4 whitespace-nowrap text-sm">
               <span :class="['px-2 inline-flex text-xs leading-5 font-semibold rounded-full', {
                 'bg-yellow-100 text-yellow-800': incidencia.estado === 'Abierta',
@@ -84,11 +90,6 @@
     @instrumentador-created="handleInstrumentadorCreated"
   />
 
-  <!-- 
-    === MODIFICADO ===
-    Añadimos el listener para el evento '@updated'.
-    Cuando el Drawer emita 'updated', llamaremos a la función fetchData.
-  -->
   <IncidenceDrawer
     :show="isDrawerOpen"
     :incidencia="selectedIncidencia"
@@ -139,6 +140,7 @@ const fetchData = async () => {
       instrumentadoresList.value = iqRes.data;
     }
 
+    // La consulta ya trae todas las columnas, incluyendo 'es_intervencion_clave', por lo que no necesita cambios.
     let query = supabase
       .from('incidencias')
       .select(`*, reportes (paciente, medico), instrumentadores (nombre_completo)`, { count: 'exact' });
@@ -186,7 +188,7 @@ const exportPDF = async () => {
     if (error) throw error;
 
     if (data.length === 0) {
-      toast.info("No hay incidencias para exportar con los filtros actuales.");
+      toast.info("No hay eventos para exportar con los filtros actuales.");
       return;
     }
 
