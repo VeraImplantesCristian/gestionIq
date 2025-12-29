@@ -2,33 +2,16 @@
 <template>
   <div class="min-h-screen bg-slate-100 dark:bg-slate-900 p-4 sm:p-8">
 
-    <!-- ESTADO 1: PANTALLA DE AUTENTICACIÓN (PIDE EL DNI) -->
+    <!-- ESTADO 1: PANTALLA DE AUTENTICACIÓN -->
     <div v-if="!isAuthenticated" class="max-w-md mx-auto pt-16">
       <div class="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg text-center">
         <img src="/2.svg" alt="Districorr" class="h-10 mx-auto mb-6 opacity-80">
         <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100">Resumen de Actividad</h1>
-        <p class="text-slate-600 dark:text-slate-400 mt-2 mb-6">
-          Por favor, ingresá tu DNI para acceder a tu información.
-        </p>
-
+        <p class="text-slate-600 dark:text-slate-400 mt-2 mb-6">Por favor, ingresá tu DNI para acceder a tu información.</p>
         <form @submit.prevent="authenticate">
-          <div class="form-group">
-            <label for="dni" class="sr-only">DNI</label>
-            <input
-              type="text"
-              id="dni"
-              v-model="dni"
-              placeholder="Ingresá tu DNI (con o sin puntos)"
-              class="form-input"
-              required
-            />
-          </div>
-
+          <input v-model="dni" type="text" placeholder="Ingresá tu DNI (con o sin puntos)" class="form-input" required />
           <p v-if="error" class="error-message">{{ error }}</p>
-
-          <button type="submit" :disabled="isLoading" class="w-full btn-primary">
-            {{ isLoading ? 'Verificando...' : 'Continuar' }}
-          </button>
+          <button type="submit" :disabled="isLoading" class="w-full btn-primary mt-4">{{ isLoading ? 'Verificando...' : 'Continuar' }}</button>
         </form>
       </div>
     </div>
@@ -42,153 +25,86 @@
 
       <!-- Tabs -->
       <div class="tabs-wrap mb-8">
-        <button
-          class="tab-btn"
-          :class="activeTab === 'resumen' ? 'tab-btn--active' : ''"
-          type="button"
-          @click="activeTab = 'resumen'"
-        >
-          Resumen
-        </button>
-        <button
-          class="tab-btn"
-          :class="activeTab === 'faq' ? 'tab-btn--active' : ''"
-          type="button"
-          @click="activeTab = 'faq'"
-        >
-          Preguntas Frecuentes
-        </button>
+        <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'resumen' }" @click="activeTab = 'resumen'">Resumen de Pagos</button>
+        <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'datos' }" @click="activeTab = 'datos'">Mis Datos</button>
+        <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'faq' }" @click="activeTab = 'faq'">Preguntas Frecuentes</button>
       </div>
 
-      <!-- TAB 1: RESUMEN -->
+      <!-- TAB 1: RESUMEN DE PAGOS -->
       <div v-if="activeTab === 'resumen'">
-        <!-- Indicadores Superiores -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div class="stat-card">
-            <h3 class="stat-title">Total Cirugías (Mes)</h3>
-            <p class="stat-value">{{ totalCirugiasMes }}</p>
+            <h3 class="stat-title">Cirugías Pendientes</h3>
+            <p class="stat-value">{{ cirugiasPendientesCount }}</p>
           </div>
           <div class="stat-card">
-            <h3 class="stat-title">Pendientes de Pago</h3>
-            <p class="stat-value">{{ pendientesDePago }}</p>
+            <h3 class="stat-title">Cobradas (Mes Actual)</h3>
+            <p class="stat-value">{{ cirugiasCobradasMesCount }}</p>
           </div>
         </div>
-
-        <!-- Grilla de Tarjetas de Reporte -->
-        <div v-if="paginatedActivity.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div v-for="report in paginatedActivity" :key="report.id" class="report-card">
-            <div class="card-header">
-              <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24">
-                  <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z">
-                  </path>
-                </svg>
-                <span>{{ formatDate(report.fecha_cirugia) }}</span>
-              </div>
-              <span class="status-badge" :class="getStatusClass(report.estado)">
-                {{ report.estado }}
-              </span>
-            </div>
-
-            <div class="card-body">
-              <h2 class="font-bold text-lg text-slate-800 dark:text-slate-100">{{ report.paciente }}</h2>
-              <div class="text-sm text-slate-600 dark:text-slate-300 mt-2 space-y-1">
-                <p><strong>Institución / Médico:</strong> {{ report.cliente_nombre || 'N/A' }} / {{ report.medico_nombre || 'N/A' }}</p>
-              </div>
-            </div>
-
-            <div class="card-footer">
-              <div v-if="report.estado === 'Enviado'">
-                <div v-if="report.estado_pago === 'Pagado'" class="payment-info">
-                  <span class="status-badge bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-300">Pagado</span>
-                  <a
-                    v-if="report.comprobante_object_key"
-                    :href="getComprobanteUrl(report.comprobante_object_key)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="action-link"
-                  >
-                    Ver recibo ↗
-                  </a>
+        <section class="mb-12">
+          <h2 class="section-title">🟡 Pendientes de Pago</h2>
+          <div v-if="pendientes.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div v-for="report in pendientes" :key="report.id" class="report-card-simple">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="font-bold text-slate-800 dark:text-slate-100">{{ report.paciente }}</p>
+                  <p class="text-sm text-slate-500 dark:text-slate-400">{{ formatDate(report.fecha_cirugia) }}</p>
                 </div>
-                <div v-else>
-                  <span class="status-badge bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-300">
-                    Pendiente de Pago
-                  </span>
+                <span class="status-badge bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-300">Pendiente</span>
+              </div>
+              <p class="text-xs text-slate-400 dark:text-slate-500 mt-2 text-right">A la espera de lote de pago</p>
+            </div>
+          </div>
+          <div v-else class="empty-state">No tenés cirugías pendientes de pago.</div>
+        </section>
+        <section>
+          <h2 class="section-title">🟢 Histórico de Pagos</h2>
+          <div v-if="Object.keys(pagadasAgrupadas).length > 0">
+            <div v-for="(reports, month) in pagadasAgrupadas" :key="month" class="mb-8">
+              <h3 class="month-title">{{ month }}</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div v-for="report in reports" :key="report.id" class="report-card-simple">
+                  <div>
+                    <p class="font-bold text-slate-800 dark:text-slate-100">{{ report.paciente }}</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ formatDate(report.fecha_cirugia) }}</p>
+                  </div>
+                  <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                    <div>
+                      <p class="text-xs text-slate-400">Pagado el:</p>
+                      <p class="text-sm font-medium text-green-600 dark:text-green-400">{{ formatDate(report.fecha_pago) }}</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                      <button @click="openDetailModal(report)" class="action-link">Ver Detalles</button>
+                      <a v-if="report.comprobante_object_key" :href="getComprobanteUrl(report.comprobante_object_key)" target="_blank" rel="noopener noreferrer" class="action-link-secondary" title="Ver comprobante general">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      </a>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div v-else>
-                <span class="text-sm text-slate-400">Completa la ficha para ver el estado de pago.</span>
-              </div>
             </div>
           </div>
-        </div>
-
-        <div v-else class="text-center p-10 bg-white dark:bg-slate-800 rounded-xl shadow">
-          <p class="text-slate-500">No se encontró actividad para mostrar.</p>
-        </div>
-
-        <!-- Controles de Paginación -->
-        <PaginationControls
-          v-if="totalItems > itemsPerPage"
-          :current-page="currentPage"
-          :total-items="totalItems"
-          :items-per-page="itemsPerPage"
-          @page-changed="goToPage"
-          class="mt-8"
-        />
+          <div v-else class="empty-state">Aún no tenés cirugías pagadas registradas.</div>
+        </section>
       </div>
 
-      <!-- TAB 2: FAQ -->
-      <div v-else class="faq-wrap">
-        <div class="faq-card">
-          <div class="faq-header">
-            <h2 class="faq-title">Preguntas Frecuentes</h2>
-            <p class="faq-subtitle">
-              Respuestas rápidas sobre pagos, comprobantes y estados. Si tu caso es especial, escribinos y lo revisamos.
-            </p>
-          </div>
+      <!-- TAB 2: MIS DATOS -->
+      <MyDataSection v-else-if="activeTab === 'datos'" :info="instrumentadorInfo" />
 
-          <div class="faq-list">
-            <div
-              v-for="item in faqItems"
-              :key="item.id"
-              class="faq-item"
-            >
-              <button
-                type="button"
-                class="faq-q"
-                @click="toggleFaq(item.id)"
-                :aria-expanded="openFaqId === item.id"
-              >
-                <span class="faq-q-text">{{ item.q }}</span>
-                <svg
-                  class="faq-chevron"
-                  :class="openFaqId === item.id ? 'faq-chevron--open' : ''"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
+      <!-- TAB 3: FAQ -->
+      <FaqSection v-else />
 
-              <div v-show="openFaqId === item.id" class="faq-a">
-                <p class="faq-a-text" v-html="item.a"></p>
-              </div>
-            </div>
-          </div>
-
-          <div class="faq-footer">
-            <div class="faq-tip">
-              <strong>Tip:</strong> Si ves “Pendiente de pago”, normalmente es porque falta cerrar circuito:
-              retorno de material + control + ficha completa.
-            </div>
-          </div>
-        </div>
-      </div>
-
+      <!-- Botón Flotante de WhatsApp -->
+      <a :href="whatsappLink" target="_blank" rel="noopener noreferrer" class="whatsapp-fab" title="Consultar sobre pagos">
+        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.487 5.235 3.487 8.413.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01s-.521.074-.792.372c-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+        </svg>
+      </a>
     </div>
+
+    <!-- Modal de Detalle de Pago -->
+    <PaymentDetailModal :show="isDetailModalOpen" :reporte="selectedReport" @close="isDetailModalOpen = false" />
   </div>
 </template>
 
@@ -197,89 +113,25 @@ import { ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { supabase } from '../services/supabase';
 import { useToast } from 'vue-toastification';
-import PaginationControls from '../components/PaginationControls.vue';
+import FaqSection from '../components/FaqSection.vue';
+import PaymentDetailModal from '../components/PaymentDetailModal.vue';
+import MyDataSection from '../components/MyDataSection.vue';
 
 const isAuthenticated = ref(false);
 const isLoading = ref(false);
 const error = ref(null);
 const dni = ref('');
-const allActivityData = ref([]); // Almacena TODA la actividad
-const currentPage = ref(1);
-const itemsPerPage = ref(9); // 9 para que se vea bien en una grilla de 3 columnas
-
-// Tabs
-const activeTab = ref('resumen'); // 'resumen' | 'faq'
-
-// FAQ (acordeón)
-const openFaqId = ref(null);
-const toggleFaq = (id) => {
-  openFaqId.value = openFaqId.value === id ? null : id;
-};
-
-const faqItems = ref([
-  {
-    id: 'pago-cuando',
-    q: '¿Cuándo se paga una cirugía?',
-    a: `El pago se realiza <strong>dentro de los 7 días hábiles</strong> posteriores a que:<br>
-        • El material regresa al depósito y se controla<br>
-        • La ficha técnica esté <strong>completa y validada</strong>.`,
-  },
-  {
-    id: 'pendiente-por-que',
-    q: '¿Por qué figura “Pendiente de pago” si ya instrumenté la cirugía?',
-    a: `Porque el pago no se dispara solo por “instrumentar”. Se paga cuando se cierra el circuito:
-        <strong>retorno de material</strong>, <strong>control</strong> y <strong>ficha técnica completa</strong>.`,
-  },
-  {
-    id: 'sin-ficha',
-    q: '¿Puedo cobrar si no completé la ficha técnica?',
-    a: `No. La ficha técnica es <strong>obligatoria</strong> y forma parte de la política de la empresa.
-        Sin ficha → <strong>no se procesa el pago</strong>.`,
-  },
-  {
-    id: 'pago-agrupado',
-    q: '¿Qué pasa si me pagaron varias cirugías juntas?',
-    a: `Es normal. Muchas veces se agrupan varias cirugías de una misma semana en <strong>un solo pago</strong>
-        (un solo comprobante).`,
-  },
-  {
-    id: 'comprobante-donde',
-    q: '¿Dónde veo mi comprobante de pago?',
-    a: `Cuando el estado figura como <strong>“Pagado”</strong>, vas a ver el botón <strong>“Ver recibo”</strong>
-        disponible en la tarjeta del reporte.`,
-  },
-  {
-    id: 'por-que-ficha',
-    q: '¿Por qué es tan importante completar la ficha técnica?',
-    a: `Porque permite validar el evento quirúrgico, controlar materiales y registrar observaciones.
-        Es el paso que habilita el cierre del circuito y el pago.`,
-  },
-  {
-    id: 'no-veo-pago',
-    q: '¿Por qué no veo el estado de pago?',
-    a: `Hasta que la ficha no esté completa y enviada, el sistema puede mostrarte “Completa la ficha…”.
-        Recién con <strong>Enviado</strong> se muestra el estado de pago.`,
-  },
-  {
-    id: 'estados',
-    q: '¿Qué significa cada estado?',
-    a: `<strong>Pendiente:</strong> falta completar o validar la ficha.<br>
-        <strong>Enviado:</strong> ficha cerrada y circuito finalizado.<br>
-        <strong>Pagado:</strong> pago realizado y comprobante disponible.`,
-  },
-  {
-    id: 'dos-tiempos',
-    q: '¿Qué pasa si una cirugía se reprograma o tiene dos tiempos quirúrgicos?',
-    a: `Cada tiempo se gestiona como un <strong>evento logístico distinto</strong>.
-        Eso impacta en materiales, fichas y pagos.`,
-  },
-]);
+const allActivityData = ref([]);
+const instrumentadorInfo = ref(null);
+const activeTab = ref('resumen');
+const isDetailModalOpen = ref(false);
+const selectedReport = ref(null);
 
 const route = useRoute();
 const toast = useToast();
-
 const token = route.params.token;
-const R2_PUBLIC_URL = import.meta.env.VITE_R2_PUBLIC_URL;
+
+const whatsappLink = "https://wa.me/5493794007558?text=Hola%20Cesar,%20tengo%20una%20consulta%20sobre%20mis%20pagos.";
 
 const authenticate = async () => {
   if (!dni.value.trim()) {
@@ -289,14 +141,15 @@ const authenticate = async () => {
   isLoading.value = true;
   error.value = null;
   try {
-    const cleanDni = dni.value.trim().replace(/\D/g, '');
-    const { data, error: rpcError } = await supabase.rpc('autenticar_y_obtener_resumen', {
-      p_token: token,
-      p_dni: cleanDni
-    });
+    const cleanDni = dni.value.trim();
+    const { data, error: rpcError } = await supabase.rpc('autenticar_y_obtener_resumen', { p_token: token, p_dni: cleanDni });
+    
     if (rpcError) throw rpcError;
+
     if (data) {
-      allActivityData.value = data;
+      // La lógica se ajusta para manejar la respuesta del objeto JSON.
+      instrumentadorInfo.value = data.instrumentador_info;
+      allActivityData.value = (data.activity_summary || []).filter(r => r.estado === 'Enviado');
       isAuthenticated.value = true;
       toast.success("Acceso concedido.");
     } else {
@@ -305,164 +158,73 @@ const authenticate = async () => {
       toast.error("Acceso denegado.");
     }
   } catch (err) {
-    console.error("Error en la autenticación:", err);
+    console.error("Error en la autenticación o procesamiento:", err);
     error.value = "Ocurrió un error inesperado. Intentá de nuevo.";
-    toast.error("Error de conexión.");
+    toast.error("Error de conexión o procesamiento de datos.");
   } finally {
     isLoading.value = false;
   }
 };
 
-// --- LÓGICA DE PAGINACIÓN ---
-const totalItems = computed(() => allActivityData.value.length);
+const pendientes = computed(() => allActivityData.value.filter(r => r.estado_pago === 'Pendiente'));
 
-const paginatedActivity = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  return allActivityData.value.slice(start, end);
+const pagadasAgrupadas = computed(() => {
+  const pagadas = allActivityData.value.filter(r => r.estado_pago === 'Pagado');
+  return pagadas.reduce((acc, report) => {
+    if (!report.fecha_pago) return acc;
+    const month = new Date(report.fecha_pago).toLocaleString('es-AR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const capitalizedMonth = month.charAt(0).toUpperCase() + month.slice(1);
+    if (!acc[capitalizedMonth]) acc[capitalizedMonth] = [];
+    acc[capitalizedMonth].push(report);
+    return acc;
+  }, {});
 });
 
-const goToPage = (page) => {
-  currentPage.value = page;
-};
+const cirugiasPendientesCount = computed(() => pendientes.value.length);
 
-// --- PROPIEDADES COMPUTADAS PARA LOS INDICADORES ---
-const totalCirugiasMes = computed(() => {
+const cirugiasCobradasMesCount = computed(() => {
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
-  return allActivityData.value.filter(report => {
-    const reportDate = new Date(report.fecha_cirugia);
-    return reportDate.getMonth() === currentMonth && reportDate.getFullYear() === currentYear;
+  return allActivityData.value.filter(r => {
+    if (r.estado_pago !== 'Pagado' || !r.fecha_pago) return false;
+    const paymentDate = new Date(r.fecha_pago);
+    return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
   }).length;
 });
 
-const pendientesDePago = computed(() => {
-  return allActivityData.value.filter(report => report.estado === 'Enviado' && report.estado_pago === 'Pendiente').length;
-});
-
-// --- FUNCIONES AUXILIARES DE FORMATO ---
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A';
-  const options = { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' };
-  return new Date(dateString).toLocaleDateString('es-AR', options);
+const openDetailModal = (report) => {
+  selectedReport.value = report;
+  isDetailModalOpen.value = true;
 };
 
-const getStatusClass = (status) => {
-  const statusMap = {
-    'Pendiente': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-300',
-    'Enviado': 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300',
-    'Expirado': 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300',
-  };
-  return statusMap[status] || 'bg-slate-100 text-slate-800';
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleDateString('es-AR', { timeZone: 'UTC' });
 };
 
 const getComprobanteUrl = (objectKey) => {
   if (!objectKey) return '#';
+  const R2_PUBLIC_URL = import.meta.env.VITE_R2_PUBLIC_URL;
   return `${R2_PUBLIC_URL}/${objectKey}`;
 };
 </script>
 
 <style scoped>
-.form-input {
-  @apply w-full px-4 py-3 border border-slate-300 rounded-lg text-center text-lg;
-  @apply dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100;
-}
-.error-message {
-  @apply text-red-500 text-sm mt-2 mb-4;
-}
-.btn-primary {
-  @apply w-full bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors;
-  @apply hover:bg-blue-700;
-  @apply disabled:bg-slate-400 disabled:cursor-not-allowed;
-}
-.stat-card {
-  @apply bg-white dark:bg-slate-800 p-6 rounded-xl shadow;
-}
-.stat-title {
-  @apply text-sm font-medium text-slate-500 dark:text-slate-400;
-}
-.stat-value {
-  @apply text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1;
-}
-.report-card {
-  @apply bg-white dark:bg-slate-800 rounded-xl shadow flex flex-col transition-transform duration-200 hover:scale-[1.02];
-}
-.card-header {
-  @apply flex justify-between items-center p-4 border-b border-slate-100 dark:border-slate-700;
-}
-.card-body {
-  @apply p-4 flex-grow;
-}
-.card-footer {
-  @apply p-4 bg-slate-50 dark:bg-slate-800/50 rounded-b-xl;
-}
-.payment-info {
-  @apply flex justify-between items-center;
-}
-.action-link {
-  @apply text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline;
-}
-.status-badge {
-  @apply inline-block px-3 py-1 rounded-full text-xs font-semibold;
-}
-
-/* Tabs */
-.tabs-wrap {
-  @apply inline-flex bg-white dark:bg-slate-800 rounded-xl shadow p-1 gap-1;
-}
-.tab-btn {
-  @apply px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors;
-  @apply hover:bg-slate-100 dark:hover:bg-slate-700/60;
-}
-.tab-btn--active {
-  @apply bg-slate-900 text-white dark:bg-white dark:text-slate-900;
-}
-
-/* FAQ */
-.faq-wrap {
-  @apply w-full;
-}
-.faq-card {
-  @apply bg-white dark:bg-slate-800 rounded-2xl shadow p-6;
-}
-.faq-header {
-  @apply mb-6;
-}
-.faq-title {
-  @apply text-xl font-bold text-slate-800 dark:text-slate-100;
-}
-.faq-subtitle {
-  @apply mt-2 text-slate-600 dark:text-slate-300;
-}
-.faq-list {
-  @apply divide-y divide-slate-100 dark:divide-slate-700;
-}
-.faq-item {
-  @apply py-3;
-}
-.faq-q {
-  @apply w-full flex items-center justify-between gap-3 text-left;
-  @apply px-2 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors;
-}
-.faq-q-text {
-  @apply font-semibold text-slate-800 dark:text-slate-100;
-}
-.faq-chevron {
-  @apply w-5 h-5 text-slate-500 dark:text-slate-300 transition-transform;
-}
-.faq-chevron--open {
-  @apply rotate-180;
-}
-.faq-a {
-  @apply px-2 pt-2;
-}
-.faq-a-text {
-  @apply text-slate-600 dark:text-slate-300 leading-relaxed;
-}
-.faq-footer {
-  @apply mt-6;
-}
-.faq-tip {
-  @apply text-sm bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-slate-700 dark:text-slate-200;
-}
+.form-input { @apply w-full px-4 py-3 border border-slate-300 rounded-lg text-center text-lg dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100; }
+.error-message { @apply text-red-500 text-sm mt-2; }
+.btn-primary { @apply w-full bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed; }
+.stat-card { @apply bg-white dark:bg-slate-800 p-6 rounded-xl shadow; }
+.stat-title { @apply text-sm font-medium text-slate-500 dark:text-slate-400; }
+.stat-value { @apply text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1; }
+.tabs-wrap { @apply inline-flex bg-white dark:bg-slate-800 rounded-xl shadow p-1 gap-1; }
+.tab-btn { @apply px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-100 dark:hover:bg-slate-700/60; }
+.tab-btn--active { @apply bg-slate-900 text-white dark:bg-white dark:text-slate-900; }
+.section-title { @apply text-xl font-bold text-slate-700 dark:text-slate-200 mb-4 pb-2 border-b-2 border-slate-200 dark:border-slate-700; }
+.month-title { @apply text-lg font-semibold text-slate-600 dark:text-slate-300 mb-4; }
+.report-card-simple { @apply bg-white dark:bg-slate-800 p-4 rounded-xl shadow transition-shadow hover:shadow-md; }
+.status-badge { @apply inline-block px-2 py-0.5 rounded-full text-xs font-semibold; }
+.action-link { @apply text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer; }
+.action-link-secondary { @apply text-slate-400 hover:text-slate-600 dark:hover:text-slate-200; }
+.empty-state { @apply text-center p-8 bg-white dark:bg-slate-800 rounded-xl shadow text-slate-500; }
+.whatsapp-fab { @apply fixed bottom-6 right-6 bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-110 z-30; }
 </style>

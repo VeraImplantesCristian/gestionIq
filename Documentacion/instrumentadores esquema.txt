@@ -1,0 +1,16 @@
+create table public.instrumentadores (
+  dni text not null,
+  nombre_completo text not null,
+  created_at timestamp with time zone null default now(),
+  alias text null,
+  telefono text null,
+  lugar_trabajo text null,
+  cuil text null,
+  puntos_manuales integer not null default 0,
+  cbu text null,
+  alias_bancario text null,
+  banco text null,
+  activity_token text null,
+  constraint instrumentadores_pkey primary key (dni),
+  constraint instrumentadores_activity_token_key unique (activity_token)
+) TABLESPACE pg_default;

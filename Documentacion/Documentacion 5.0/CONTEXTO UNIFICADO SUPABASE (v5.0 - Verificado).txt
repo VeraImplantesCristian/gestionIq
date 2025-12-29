@@ -1,0 +1,72 @@
+INICIO DEL ARCHIVO: CONTEXTO UNIFICADO SUPABASE (v5.0 - Verificado).txt
+
+Este documento es la fuente de verdad para la arquitectura de datos y lógica de negocio del proyecto "Gestion IQ" en Supabase. Reemplaza todas las versiones anteriores.
+
+1. FILOSOFÍA DE ARQUITECTURA: SERVER-CENTRIC
+La arquitectura sigue siendo "Server-Centric". La lógica de negocio, la seguridad y la consistencia de los datos residen en el servidor (PostgreSQL), utilizando Vistas, Funciones RPC y Triggers. Los frontends son clientes ligeros.
+
+2. ESTRUCTURA DE LA BASE DE DATOS (Corregida y Actualizada)
+
+--- NOTA DE ACTUALIZACIÓN CRÍTICA ---
+La documentación anterior contenía nombres de columnas y claves primarias incorrectas. Esta sección ahora refleja el esquema REAL de la base de datos.
+
+2.1. Tablas Maestras y de Catálogo
+
+*   `instrumentadores`: Almacena los datos de los instrumentadores.
+    *   `dni` (PK, TEXT): Clave primaria.
+    *   `nombre_completo` (TEXT)
+    *   `cuil` (TEXT): --- CORREGIDO (antes 'cuit').
+    *   `lugar_trabajo` (TEXT): --- CORREGIDO (antes 'lugar_de_trabajo').
+    *   `banco` (TEXT)
+    *   `alias_bancario` (TEXT): --- CORREGIDO (antes 'alias').
+    *   `cbu` (TEXT)
+    *   `activity_token` (TEXT, UNIQUE): Token de acceso para el portal de actividad.
+
+2.2. Tablas Transaccionales y de Flujo
+
+*   `reportes`: Corazón del sistema. Almacena el ciclo de vida de la cirugía.
+    *   `pago_id` (FK a `pagos.id`): Vincula la cirugía a un pago específico.
+    *   `instrumentador_dni` (FK a `instrumentadores.dni`): Identifica al instrumentador.
+
+*   `pagos`: Tabla de enlace que representa el pago a un instrumentador dentro de una orden.
+    *   `orden_de_pago_id` (FK a `ordenes_de_pago.id`): Vincula el pago a la orden general.
+
+*   `ordenes_de_pago`: Tabla principal del sistema de pagos por lote.
+
+*   `incidencias`: Almacena tanto incidencias negativas como aportes excepcionales.
+    *   `es_intervencion_clave` (BOOLEAN, DEFAULT FALSE): --- NUEVO Y CRÍTICO. Si es `TRUE`, este registro se considera una "Intervención Clave" (un aporte positivo) y no penaliza el cálculo del IVO.
+
+3. LÓGICA DE NEGOCIO EN LA BASE DE DATOS
+
+3.1. Vistas (NUEVA SECCIÓN CRÍTICA)
+
+*   `v_reportes_con_ivo` (VISTA): Es la "Calculadora Central del IVO".
+    *   **Propósito:** Pre-calcula el puntaje de calidad (IVO) para cada cirugía finalizada.
+    *   **Lógica:** Lee de las tablas `reportes` e `incidencias`. Calcula los componentes del puntaje (`puntaje_tiempo`, `puntaje_informacion`, `puntaje_evidencia`) y el `modificador_incidencia` (solo para incidencias donde `es_intervencion_clave` es `FALSE`).
+    *   **Salida:** Expone una fila por cirugía con todos los componentes del puntaje y el `puntaje_ivo_cirugia` final.
+
+3.2. Funciones (RPC) - Actualizadas y Verificadas
+
+*   `autenticar_y_obtener_resumen(p_token text, p_dni text)`:
+    *   **Propósito:** Único punto de entrada para el portal del instrumentador.
+    *   **Lógica Clave:** Realiza una comparación robusta de `token` y `dni` usando `trim()` y `regexp_replace()` para ser inmune a errores de formato (puntos, espacios).
+    *   **Retorno (ACTUALIZADO):** Devuelve un único objeto JSON con dos claves:
+        1.  `instrumentador_info`: Un objeto con los datos personales del instrumentador.
+        2.  `activity_summary`: Un array (que nunca es nulo) con el historial de cirugías.
+        Devuelve `NULL` si la autenticación falla.
+
+*   `get_instrumentadores_con_stats()` (RPC): --- ACTUALIZADO
+    *   **Propósito:** Alimenta la vista principal de "Gestión de Instrumentadores".
+    *   **Lógica Clave:** Llama a `obtener_ranking_ivo()` y une los resultados con la tabla `instrumentadores`.
+    *   **Retorno:** Devuelve una lista de instrumentadores con su `ivo_score` (calculado sobre los últimos 90 días) y `fichas_enviadas`. Ya no devuelve los promedios manuales/digitales.
+
+*   `obtener_ranking_ivo(p_dias integer)` (RPC): --- NUEVO
+    *   **Propósito:** Función de apoyo que calcula el IVO total por instrumentador.
+    *   **Lógica Clave:** Lee de la vista `v_reportes_con_ivo`, agrupa por DNI y suma los puntajes del período especificado.
+
+*   `obtener_detalle_estadisticas_instrumentador(p_dni text)` (RPC): --- NUEVO
+    *   **Propósito:** Alimenta el modal de "Análisis de Rendimiento Operativo".
+    *   **Lógica Clave:** Consulta la vista `v_reportes_con_ivo` y la tabla `incidencias` (para contar Intervenciones Clave).
+    *   **Retorno:** Devuelve un objeto JSON con métricas detalladas: `ivo_total_90d`, promedios de componentes para el gráfico (`promedio_tiempo`, etc.), conteo de `incidencias_90d`, conteo de `intervenciones_clave_count`, etc.
+
+*   `registrar_orden_de_pago(p_orden jsonb)`: (Sin cambios funcionales). Sigue siendo el motor transaccional del sistema de pagos.

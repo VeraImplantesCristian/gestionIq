@@ -1,0 +1,55 @@
+INICIO DEL ARCHIVO: Manual de Arquitectura y Flujo de Datos (v5.0 - Verificado).txt
+
+Este documento detalla el rol de cada componente del ecosistema "Gestion IQ" y el flujo de información entre ellos. Reemplaza todas las versiones anteriores.
+
+1. FILOSOFÍA ARQUITECTÓNICA: "SERVER-CENTRIC" CON CLIENTE INTELIGENTE
+La lógica de negocio crítica reside en Supabase (PostgreSQL). El frontend (Vue 3) actúa como un cliente que consume datos a través de RPCs, orquesta la UI y gestiona el estado local.
+
+2. FLUJO DE VIDA DE LA INFORMACIÓN (Perspectiva del Usuario)
+
+2.1. El Instrumentador (Portal de Actividad Mejorado)
+
+*   **Acceso al Portal (Flujo Verificado):**
+    1.  El instrumentador accede a su link único (ej. `.../resumen/{token}`).
+    2.  La vista `ActivitySummaryView.vue` le solicita su DNI.
+    3.  Al enviar, se llama a la RPC `autenticar_y_obtener_resumen`. El backend realiza una comparación robusta (insensible a puntos o espacios) del token y el DNI.
+    4.  Si la autenticación es exitosa, el backend devuelve un objeto JSON con los datos personales y el historial de actividad.
+
+*   **Visualización de Pagos (Diseño Actualizado):**
+    1.  La vista `ActivitySummaryView.vue` ahora presenta las cirugías en dos bloques separados: "Pendientes de Pago" e "Histórico de Pagos".
+    2.  **Cirugías Pendientes:** Muestran el estado "A la espera de lote de pago".
+    3.  **Cirugías Pagadas:** Se agrupan por mes de pago. Cada tarjeta muestra la fecha de pago y dos acciones:
+        *   **"Ver Detalles":** Abre un modal (`PaymentDetailModal.vue`) con un resumen simple del pago (monto, fecha, Orden de Pago asociada).
+        *   **"Ver Comprobante":** Abre el archivo del comprobante general de la orden de pago en una nueva pestaña.
+
+*   **Consulta de Datos Personales (NUEVO):**
+    1.  Una nueva pestaña "Mis Datos" muestra la información personal y de pago (`nombre`, `cuil`, `cbu`, etc.) que el sistema tiene registrada.
+
+*   **Canal de Comunicación (NUEVO):**
+    1.  Un botón flotante de WhatsApp ofrece un enlace directo para iniciar una conversación con "Gestión de Pagos (Cesar)".
+
+2.2. El Administrador (Panel de Control con Inteligencia Operativa)
+
+*   **Gestión de Instrumentadores (Flujo Actualizado con IVO):**
+    1.  La vista `InstrumentadoresView.vue` ahora muestra una tabla simplificada con el **"IVO (90d)"** como métrica principal de rendimiento.
+    2.  Las columnas de promedios manuales y digitales han sido eliminadas.
+    3.  Un panel de filtros (`InstrumentadoresFilters.vue`) permite buscar, ordenar por IVO y exportar los datos a Excel.
+    4.  Un botón "Ver Estadísticas" en cada fila abre un modal (`EstadisticasInstrumentadorModal.vue`) que presenta un análisis detallado del rendimiento del instrumentador, incluyendo:
+        *   Su categoría de rendimiento (Destacado, Correcto, etc.).
+        *   Un gráfico de barras que desglosa la composición de su puntaje.
+        *   El impacto de las penalizaciones por incidencias.
+        *   El conteo de "Intervenciones Clave" registradas.
+
+*   **Gestión de Incidencias e Intervenciones Clave (Flujo Actualizado):**
+    1.  El administrador sigue usando el `NewIncidenceModal.vue` para registrar eventos.
+    2.  Un nuevo checkbox **"Marcar como Intervención Clave"** permite clasificar un evento como un aporte excepcional.
+    3.  Si se marca, el registro se guarda como una incidencia pero con `es_intervencion_clave = true`, lo que evita que penalice el IVO del instrumentador.
+    4.  La tabla de `IncidenciasView.vue` muestra un indicador "🟣" para identificar visualmente estas intervenciones.
+
+*   **Flujo de Pagos por Lote:** (Sin cambios funcionales). El administrador sigue utilizando el `PagosDashboardView.vue` y `CrearOrdenDePagoView.vue` para generar y registrar las órdenes de pago.
+
+3. INTERACCIONES DETALLADAS CON LA BASE DE DATOS (Rol 'anon')
+
+*   `rpc('autenticar_y_obtener_resumen', { p_token, p_dni })`:
+    *   **Rol:** Única llamada a la base de datos que realiza el portal del instrumentador.
+    *   **Respuesta Esperada (ACTUALIZADO):** Un objeto JSON `{ instrumentador_info: {...}, activity_summary: [...] }`. El frontend está preparado para manejar esta estructura.
