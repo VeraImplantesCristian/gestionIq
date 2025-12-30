@@ -1,70 +1,110 @@
 <!-- src/views/InstrumentadoresView.vue -->
 <template>
   <div class="p-4 sm:p-6 lg:p-8">
-    <InstrumentadoresFilters 
-      v-model="filters" 
-      :export-disabled="loading || processedInstrumentadores.length === 0"
-      @export="handleExport"
-    />
-
-    <!-- Estado de Carga -->
-    <div v-if="loading" class="space-y-4">
-      <SkeletonLoader v-for="n in 5" :key="`skel-${n}`" />
+    <!-- --- INICIO DE LA MODIFICACIÓN --- -->
+    <!-- Sistema de Pestañas -->
+    <div class="mb-6 border-b border-gray-200 dark:border-slate-700">
+      <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+        <button
+          @click="activeTab = 'lista'"
+          :class="[
+            'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm',
+            activeTab === 'lista'
+              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-slate-400 dark:hover:text-slate-200'
+          ]"
+        >
+          Lista de Instrumentadores
+        </button>
+        <button
+          @click="activeTab = 'ranking'"
+          :class="[
+            'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm',
+            activeTab === 'ranking'
+              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-slate-400 dark:hover:text-slate-200'
+          ]"
+        >
+          Ranking Mensual
+        </button>
+      </nav>
     </div>
 
-    <!-- Estado de Error -->
-    <div v-else-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-      <strong class="font-bold">Error:</strong>
-      <span class="block sm:inline">{{ error }}</span>
-    </div>
-
-    <!-- Contenido Principal: Tabla y Paginación -->
-    <div v-else class="bg-white dark:bg-slate-800 shadow-md rounded-lg overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-          <thead class="bg-gray-50 dark:bg-slate-700">
-            <tr>
-              <th scope="col" class="table-header">Nombre Completo</th>
-              <th scope="col" class="table-header text-center">Teléfono</th>
-              <th scope="col" class="table-header text-center">Fichas Enviadas</th>
-              <th scope="col" class="table-header text-center">IVO (90d)</th>
-              <th scope="col" class="table-header text-center">Acciones</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200 dark:bg-slate-800 dark:divide-slate-700">
-            <tr v-if="paginatedInstrumentadores.length === 0">
-              <td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-slate-400">No se encontraron instrumentadores que coincidan con los filtros.</td>
-            </tr>
-            <tr v-for="iq in paginatedInstrumentadores" :key="iq.dni">
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-slate-100">{{ capitalizeName(iq.nombre_completo) }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300 text-center">{{ iq.telefono || 'N/A' }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300 text-center">{{ iq.fichas_enviadas }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-center" :class="getIvoColor(iq.ivo_score)">
-                {{ iq.ivo_score.toFixed(2) }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 text-center">
-                <div class="inline-flex items-center rounded-md shadow-sm bg-slate-100 dark:bg-slate-700/50 p-0.5">
-                  <button @click="openStatsModal(iq)" title="Ver estadísticas operativas" class="action-button">
-                    <ChartBarIcon class="h-5 w-5" />
-                  </button>
-                  <button @click="copyPermanentLink(iq)" title="Copiar enlace de acceso permanente" class="action-button">
-                    <KeyIcon class="h-5 w-5" />
-                  </button>
-                </div>
-                <button @click="openEditModal(iq)" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Editar</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <PaginationControls 
-        v-if="totalItems > itemsPerPage" 
-        :current-page="currentPage" 
-        :total-items="totalItems" 
-        :items-per-page="itemsPerPage" 
-        @page-changed="goToPage" 
+    <!-- Contenido de la Pestaña "Lista" -->
+    <div v-if="activeTab === 'lista'">
+    <!-- --- FIN DE LA MODIFICACIÓN --- -->
+      <InstrumentadoresFilters 
+        v-model="filters" 
+        :export-disabled="loading || processedInstrumentadores.length === 0"
+        @export="handleExport"
       />
+
+      <!-- Estado de Carga -->
+      <div v-if="loading" class="space-y-4">
+        <SkeletonLoader v-for="n in 5" :key="`skel-${n}`" />
+      </div>
+
+      <!-- Estado de Error -->
+      <div v-else-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+        <strong class="font-bold">Error:</strong>
+        <span class="block sm:inline">{{ error }}</span>
+      </div>
+
+      <!-- Contenido Principal: Tabla y Paginación -->
+      <div v-else class="bg-white dark:bg-slate-800 shadow-md rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+            <thead class="bg-gray-50 dark:bg-slate-700">
+              <tr>
+                <th scope="col" class="table-header">Nombre Completo</th>
+                <th scope="col" class="table-header text-center">Teléfono</th>
+                <th scope="col" class="table-header text-center">Fichas Enviadas</th>
+                <th scope="col" class="table-header text-center">IVO (90d)</th>
+                <th scope="col" class="table-header text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200 dark:bg-slate-800 dark:divide-slate-700">
+              <tr v-if="paginatedInstrumentadores.length === 0">
+                <td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-slate-400">No se encontraron instrumentadores que coincidan con los filtros.</td>
+              </tr>
+              <tr v-for="iq in paginatedInstrumentadores" :key="iq.dni">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-slate-100">{{ capitalizeName(iq.nombre_completo) }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300 text-center">{{ iq.telefono || 'N/A' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300 text-center">{{ iq.fichas_enviadas }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-center" :class="getIvoColor(iq.ivo_score)">
+                  {{ iq.ivo_score.toFixed(2) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 text-center">
+                  <div class="inline-flex items-center rounded-md shadow-sm bg-slate-100 dark:bg-slate-700/50 p-0.5">
+                    <button @click="openStatsModal(iq)" title="Ver estadísticas operativas" class="action-button">
+                      <ChartBarIcon class="h-5 w-5" />
+                    </button>
+                    <button @click="copyPermanentLink(iq)" title="Copiar enlace de acceso permanente" class="action-button">
+                      <KeyIcon class="h-5 w-5" />
+                    </button>
+                  </div>
+                  <button @click="openEditModal(iq)" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Editar</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <PaginationControls 
+          v-if="totalItems > itemsPerPage" 
+          :current-page="currentPage" 
+          :total-items="totalItems" 
+          :items-per-page="itemsPerPage" 
+          @page-changed="goToPage" 
+        />
+      </div>
+    <!-- --- INICIO DE LA MODIFICACIÓN --- -->
     </div>
+
+    <!-- Contenido de la Pestaña "Ranking" -->
+    <div v-if="activeTab === 'ranking'">
+      <InstrumentadoresRanking />
+    </div>
+    <!-- --- FIN DE LA MODIFICACIÓN --- -->
   </div>
 
   <!-- Modales -->
@@ -89,6 +129,10 @@ import ImportInstrumentadoresModal from '../components/ImportInstrumentadoresMod
 import PaginationControls from '../components/PaginationControls.vue';
 import InstrumentadoresFilters from '../components/InstrumentadoresFilters.vue';
 import { KeyIcon, ChartBarIcon } from '@heroicons/vue/24/outline';
+// --- INICIO DE LA MODIFICACIÓN ---
+// Se importa el nuevo componente de Ranking
+import InstrumentadoresRanking from '../components/InstrumentadoresRanking.vue';
+// --- FIN DE LA MODIFICACIÓN ---
 
 const headerConfig = inject('header-config');
 const isNewModalOpen = ref(false);
@@ -96,7 +140,13 @@ const isImportModalOpen = ref(false);
 const openNewModal = () => { isNewModalOpen.value = true; };
 const openImportModal = () => { isImportModalOpen.value = true; };
 
+// --- INICIO DE LA MODIFICACIÓN ---
+// Se añade una variable reactiva para controlar la pestaña activa
+const activeTab = ref('lista');
+// --- FIN DE LA MODIFICACIÓN ---
+
 onMounted(() => {
+  // La configuración inicial del header no cambia
   headerConfig.value = {
     title: 'Gestión de Instrumentadores',
     buttons: [
@@ -107,6 +157,13 @@ onMounted(() => {
   fetchInstrumentadores();
 });
 onUnmounted(() => { headerConfig.value = { title: '', buttons: [] }; });
+
+// --- INICIO DE LA MODIFICACIÓN ---
+// Se utiliza un 'watch' para actualizar el título del header cuando cambia la pestaña
+watch(activeTab, (newTab) => {
+  headerConfig.value.title = newTab === 'lista' ? 'Gestión de Instrumentadores' : 'Ranking Mensual IQ';
+});
+// --- FIN DE LA MODIFICACIÓN ---
 
 const toast = useToast();
 const instrumentadores = ref([]);
@@ -190,23 +247,18 @@ const fetchInstrumentadores = async () => {
   }
 };
 
-// --- INICIO DE LA MODIFICACIÓN ---
-// Se actualiza esta función para que los colores y umbrales coincidan
-// con las 4 categorías definidas (Destacado, Correcto, Inestable, Crítico).
 const getIvoColor = (score) => {
-  if (score >= 8.0) { // Destacado
+  if (score >= 8.0) {
     return 'text-green-500 dark:text-green-400';
-  } else if (score >= 5.0) { // Correcto
+  } else if (score >= 5.0) {
     return 'text-blue-500 dark:text-blue-400';
-  } else if (score >= 3.0) { // Inestable
+  } else if (score >= 3.0) {
     return 'text-yellow-500 dark:text-yellow-400';
-  } else if (score >= 0) { // Crítico
+  } else if (score >= 0) {
     return 'text-red-500 dark:text-red-400';
   }
-  // Por defecto, para puntajes 0 o negativos (si fuera posible)
   return 'text-gray-500 dark:text-gray-400';
 };
-// --- FIN DE LA MODIFICACIÓN ---
 
 const openEditModal = (instrumentador) => {
   selectedInstrumentador.value = instrumentador;
@@ -236,7 +288,7 @@ function handleExport() {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Instrumentadores');
   const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-  const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+  const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheet.sheet;charset=UTF-8' });
   const fileName = `Reporte_Instrumentadores_${new Date().toISOString().slice(0,10)}.xlsx`;
   saveAs(data, fileName);
 }

@@ -12,7 +12,10 @@ import LoginView from '../views/LoginView.vue';
 import StatsView from '../views/StatsView.vue';
 import InstrumentadoresView from '../views/InstrumentadoresView.vue';
 import IncidenciasView from '../views/IncidenciasView.vue';
-import RankingView from '../views/RankingView.vue';
+// --- INICIO DE LA MODIFICACIÓN ---
+// Se elimina la importación de RankingView, ya que el archivo fue movido y renombrado.
+// import RankingView from '../views/RankingView.vue';
+// --- FIN DE LA MODIFICACIÓN ---
 import ReclamoView from '../views/ReclamoView.vue';
 import QuejasView from '../views/QuejasView.vue';
 import PedidosEspecialesView from '../views/PedidosEspecialesView.vue';
@@ -24,10 +27,7 @@ import ConsumoView from '../views/logistica/ConsumoView.vue';
 import GestionPagosView from '../views/admin/GestionPagosView.vue';
 import PagosDashboardView from '../views/admin/PagosDashboardView.vue';
 import CrearOrdenDePagoView from '../views/admin/CrearOrdenDePagoView.vue';
-// --- INICIO DE LA MODIFICACIÓN ---
-// 1. Importamos la nueva vista que acabamos de crear.
 import HistorialPagosView from '../views/admin/HistorialPagosView.vue';
-// --- FIN DE LA MODIFICACIÓN ---
 
 
 // --- Definición de Rutas ---
@@ -73,7 +73,11 @@ const routes = [
       { path: 'estadisticas', name: 'Estadisticas', component: StatsView },
       { path: 'instrumentadores', name: 'Instrumentadores', component: InstrumentadoresView },
       { path: 'incidencias', name: 'Incidencias', component: IncidenciasView },
-      { path: 'ranking', name: 'Ranking', component: RankingView },
+      // --- INICIO DE LA MODIFICACIÓN ---
+      // Se elimina la definición de la ruta 'ranking', ya que ahora es una pestaña
+      // dentro de 'instrumentadores' y no una página independiente.
+      // { path: 'ranking', name: 'Ranking', component: RankingView },
+      // --- FIN DE LA MODIFICACIÓN ---
       { path: 'quejas', name: 'Quejas', component: QuejasView },
       { path: 'pedidos-especiales', name: 'PedidosEspeciales', component: PedidosEspecialesView },
       { path: 'notificaciones', name: 'Notificaciones', component: NotificationsView },
@@ -99,16 +103,12 @@ const routes = [
         component: CrearOrdenDePagoView,
         meta: { requiredRole: 'admin' }
       },
-      // --- INICIO DE LA MODIFICACIÓN ---
-      // 2. Añadimos la nueva ruta para el historial de pagos.
-      //    La protegemos para que solo los administradores puedan acceder.
       {
         path: 'historial-pagos',
         name: 'HistorialPagos',
         component: HistorialPagosView,
         meta: { requiredRole: 'admin' }
       }
-      // --- FIN DE LA MODIFICACIÓN ---
     ]
   }
 ];
