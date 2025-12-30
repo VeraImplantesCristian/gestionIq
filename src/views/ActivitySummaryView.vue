@@ -95,12 +95,9 @@
       <!-- TAB 3: FAQ -->
       <FaqSection v-else />
 
-      <!-- Botón Flotante de WhatsApp -->
-      <a :href="whatsappLink" target="_blank" rel="noopener noreferrer" class="whatsapp-fab" title="Consultar sobre pagos">
-        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.487 5.235 3.487 8.413.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01s-.521.074-.792.372c-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-        </svg>
-      </a>
+      <!-- --- INICIO DE LA MODIFICACIÓN --- -->
+      <!-- El botón flotante de WhatsApp ha sido eliminado de esta vista. -->
+      <!-- --- FIN DE LA MODIFICACIÓN --- -->
     </div>
 
     <!-- Modal de Detalle de Pago -->
@@ -131,7 +128,9 @@ const route = useRoute();
 const toast = useToast();
 const token = route.params.token;
 
-const whatsappLink = "https://wa.me/5493794007558?text=Hola%20Cesar,%20tengo%20una%20consulta%20sobre%20mis%20pagos.";
+// --- INICIO DE LA MODIFICACIÓN ---
+// La constante whatsappLink se elimina ya que el botón flotante no existe más en este componente.
+// --- FIN DE LA MODIFICACIÓN ---
 
 const authenticate = async () => {
   if (!dni.value.trim()) {
@@ -147,7 +146,6 @@ const authenticate = async () => {
     if (rpcError) throw rpcError;
 
     if (data) {
-      // La lógica se ajusta para manejar la respuesta del objeto JSON.
       instrumentadorInfo.value = data.instrumentador_info;
       allActivityData.value = (data.activity_summary || []).filter(r => r.estado === 'Enviado');
       isAuthenticated.value = true;
@@ -226,5 +224,7 @@ const getComprobanteUrl = (objectKey) => {
 .action-link { @apply text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer; }
 .action-link-secondary { @apply text-slate-400 hover:text-slate-600 dark:hover:text-slate-200; }
 .empty-state { @apply text-center p-8 bg-white dark:bg-slate-800 rounded-xl shadow text-slate-500; }
-.whatsapp-fab { @apply fixed bottom-6 right-6 bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-110 z-30; }
+/* --- INICIO DE LA MODIFICACIÓN --- */
+/* Se elimina el estilo .whatsapp-fab ya que el elemento no existe. */
+/* --- FIN DE LA MODIFICACIÓN --- */
 </style>

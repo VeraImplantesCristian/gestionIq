@@ -1,115 +1,117 @@
 <!-- src/views/instrumentadores/InstrumentadorUpload.vue -->
 <template>
-  <div class="instrumentador-upload-container">
-    <h2>Subir Comprobante</h2>
-    <p>
-      Estás subiendo un archivo como: <strong>{{ instrumentadorDni }}</strong>
-    </p>
+  <div class="p-4 sm:p-6 lg:p-8">
+    <div class="max-w-7xl mx-auto">
+      
+      <header class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">Galería de Archivos</h1>
+        <p class="text-slate-600 dark:text-slate-400 mt-1">Busca y visualiza todos los comprobantes subidos al sistema.</p>
+      </header>
 
-    <!-- 
-      Aquí está la magia de la reutilización.
-      Es el MISMO componente FileUpload, pero configurado para este caso de uso:
-      - area: 'instrumentadores' -> Guarda los archivos en una carpeta separada en R2.
-      - acceptedFileTypes: 'image/*' -> Solo permite subir imágenes.
-      - enableCamera: true -> Prioriza el uso de la cámara en móviles.
-    -->
-    <FileUpload 
-      :area="'instrumentadores'"
-      :owner-id="instrumentadorDni"
-      :accepted-file-types="'image/*'"
-      :enable-camera="true"
-      @upload-success="handleUploadSuccess"
-      @upload-error="handleUploadError"
-    />
+      <div class="flex flex-col sm:flex-row gap-4 mb-8">
+        <div class="relative flex-grow">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          <input 
+            v-model="searchTerm"
+            type="search" 
+            placeholder="Buscar por nombre de paciente..." 
+            class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
+          />
+        </div>
+        <div class="flex-shrink-0 inline-flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1">
+          <button @click="activeTab = 'recientes'" :class="['tab-btn', { 'tab-btn--active': activeTab === 'recientes' }]">Recientes</button>
+          <button @click="activeTab = 'todos'" :class="['tab-btn', { 'tab-btn--active': activeTab === 'todos' }]">Todos</button>
+        </div>
+      </div>
 
-    <!-- 
-      En este caso, no necesitamos un botón de "Guardar" separado.
-      La subida del archivo es la única acción, así que guardamos en la BD automáticamente.
-      Solo mostramos un mensaje de estado.
-    -->
-    <div v-if="statusMessage" class="status-container">
-      <p :class="statusClass">{{ statusMessage }}</p>
+      <div v-if="isLoading" class="text-center py-16">
+        <p class="text-slate-500">Cargando archivos...</p>
+      </div>
+
+      <div v-else-if="filteredFiles.length === 0" class="text-center py-16 bg-white dark:bg-slate-800 rounded-xl shadow">
+        <p class="font-semibold text-slate-700 dark:text-slate-200">No se encontraron archivos</p>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Intenta con otro término de búsqueda o revisa los filtros.</p>
+      </div>
+
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        <!-- --- INICIO DE LA MODIFICACIÓN --- -->
+        <!-- Se reemplaza el div de placeholder por el componente ArchivoCard. -->
+        <!-- Esto asegura que se renderice la tarjeta visual y no el texto plano. -->
+        <ArchivoCard 
+          v-for="archivo in filteredFiles" 
+          :key="archivo.object_key"
+          :archivo="archivo"
+        />
+        <!-- --- FIN DE LA MODIFICACIÓN --- -->
+      </div>
+
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { supabase } from '../../services/supabase';
-import FileUpload from '../../components/uploader/FileUpload.vue';
+import { useToast } from 'vue-toastification';
+// --- INICIO DE LA MODIFICACIÓN ---
+// 1. Se asegura la importación del componente ArchivoCard.
+//    La ruta debe ser correcta según la estructura de tu proyecto.
+import ArchivoCard from '../../components/ArchivoCard.vue';
+// --- FIN DE LA MODIFICACIÓN ---
 
-// --- ESTADO DE LA VISTA ---
+const allFiles = ref([]);
+const isLoading = ref(true);
+const error = ref(null);
+const searchTerm = ref('');
+const activeTab = ref('recientes');
 
-// En una app real, el DNI vendría del estado de login o de un paso anterior.
-const instrumentadorDni = ref('12345678'); 
-const statusMessage = ref('');
-const hasError = ref(false);
-const isSaving = ref(false);
+const toast = useToast();
 
-const statusClass = computed(() => hasError.value ? 'status-error' : 'status-success');
-
-// --- MÉTODOS / HANDLERS ---
-
-/**
- * Se ejecuta cuando FileUpload emite 'upload-success'.
- * A diferencia del caso de Logística, aquí la lógica es más simple:
- * en cuanto el archivo se sube, intentamos guardar el registro en la base de datos.
- * @param {object} fileData - Los datos del archivo subido.
- */
-const handleUploadSuccess = async (fileData) => {
-  console.log('FileUpload notificó éxito. Procediendo a guardar en la BD.', fileData);
-  statusMessage.value = 'Archivo subido. Guardando registro...';
-  hasError.value = false;
-  isSaving.value = true;
-
+const fetchFiles = async () => {
+  isLoading.value = true;
+  error.value = null;
   try {
-    // La tabla podría ser 'instrumentador_comprobantes' o similar.
-    // El objeto a insertar solo contiene los datos del archivo.
-    const { error } = await supabase.from('instrumentador_comprobantes').insert(fileData);
-
-    if (error) throw error;
-
-    statusMessage.value = `¡Comprobante "${fileData.file_name}" guardado con éxito!`;
-  
-  } catch (error) {
-    statusMessage.value = `Error al guardar el registro: ${error.message}`;
-    hasError.value = true;
+    const { data, error: rpcError } = await supabase.rpc('obtener_galeria_archivos');
+    if (rpcError) throw rpcError;
+    allFiles.value = data || [];
+  } catch (err) {
+    console.error("Error al cargar la galería de archivos:", err);
+    error.value = "No se pudieron cargar los archivos.";
+    toast.error(error.value);
   } finally {
-    isSaving.value = false;
+    isLoading.value = false;
   }
 };
 
-/**
- * Maneja el evento de error desde el componente hijo.
- */
-const handleUploadError = (error) => {
-  statusMessage.value = `Error al subir el archivo: ${error.message}`;
-  hasError.value = true;
-};
+onMounted(fetchFiles);
+
+const filteredFiles = computed(() => {
+  let files = allFiles.value;
+
+  if (activeTab.value === 'recientes') {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    files = files.filter(file => new Date(file.fecha_creacion) > thirtyDaysAgo);
+  }
+
+  if (searchTerm.value.trim()) {
+    const lowerCaseSearch = searchTerm.value.toLowerCase();
+    files = files.filter(file => 
+      file.pacientes.some(paciente => 
+        paciente.toLowerCase().includes(lowerCaseSearch)
+      )
+    );
+  }
+
+  return files;
+});
 </script>
 
 <style scoped>
-.instrumentador-upload-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  max-width: 500px;
-  margin: 2rem auto;
-  padding: 2rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  text-align: center;
+.tab-btn {
+  @apply px-4 py-2 rounded-md text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-200 dark:hover:bg-slate-700/60;
 }
-.status-container {
-  margin-top: 1rem;
-  padding: 1rem;
-  border-radius: 4px;
-  background-color: #f8f9fa;
-}
-.status-error {
-  color: red;
-}
-.status-success {
-  color: green;
+.tab-btn--active {
+  @apply bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-white;
 }
 </style>
