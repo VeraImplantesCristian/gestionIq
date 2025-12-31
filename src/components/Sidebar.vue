@@ -5,9 +5,9 @@
 
   <aside ref="sideRef" :class="['w-64 bg-white dark:bg-slate-800 shadow-md flex flex-col fixed inset-y-0 left-0 z-30 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0', isOpen ? 'translate-x-0' : '-translate-x-full']" role="navigation" aria-label="Menú principal">
     <!-- Cabecera del Sidebar -->
-    <div class="p-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
       <div class="flex items-center gap-2">
-        <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500 text-white font-bold">IQ</span>
+        <span class="inline-flex items-center justify-center w-8 h-8 font-bold text-white bg-blue-500 rounded-xl">IQ</span>
         <h1 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Gestión IQ</h1>
       </div>
     </div>
@@ -23,13 +23,13 @@
         </button>
         <!-- Enlace con submenú -->
         <div v-else>
-          <button @click="toggleSubmenu(item.label)" class="nav-link group w-full" :aria-current="isActive(item) ? 'page' : undefined">
+          <button @click="toggleSubmenu(item.label)" class="w-full nav-link group" :aria-current="isActive(item) ? 'page' : undefined">
             <component :is="item.icon" class="w-5 h-5 shrink-0"/>
             <span class="truncate">{{ item.label }}</span>
-            <svg class="ml-auto h-4 w-4 transform transition-transform duration-200" :class="isSubmenuOpen(item.label) ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            <svg class="w-4 h-4 ml-auto transition-transform duration-200 transform" :class="isSubmenuOpen(item.label) ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
           </button>
           <div v-show="isSubmenuOpen(item.label)" class="pl-4 mt-1 space-y-1">
-            <button v-for="child in item.children" :key="child.label" @click="handleNavigation(child)" class="nav-link group w-full" :aria-current="isActive(child) ? 'page' : undefined">
+            <button v-for="child in item.children" :key="child.label" @click="handleNavigation(child)" class="w-full nav-link group" :aria-current="isActive(child) ? 'page' : undefined">
               <component :is="child.icon" class="w-5 h-5 shrink-0"/>
               <span class="truncate">{{ child.label }}</span>
             </button>
@@ -40,7 +40,7 @@
 
     <!-- Pie del Sidebar -->
     <div class="p-4 mt-auto border-t border-gray-200 dark:border-slate-700">
-      <button @click="handleLogout" class="w-full flex items-center justify-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg">
+      <button @click="handleLogout" class="flex items-center justify-center w-full gap-2 p-2 text-red-600 rounded-lg dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
         <component :is="LogoutIcon" class="w-5 h-5"/>
         <span>{{ loggingOut ? 'Cerrando…' : 'Cerrar sesión' }}</span>
       </button>
@@ -103,16 +103,15 @@ const LogoutIcon = { render: () => h('svg', { class: 'w-5 h-5', fill:'none', str
 const UploadIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' }) ]) };
 const TruckIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z' }), h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 17H6V6h11v5l-4 4H9' }) ]) };
 const DollarIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8v1m0 6v1m6-1a9 9 0 11-18 0 9 9 0 0118 0z' }) ]) };
+// --- INICIO DE LA MODIFICACIÓN ---
+const BoltIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 10V3L4 14h7v7l9-11h-7z' }) ]) };
 const HistoryIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' }) ]) };
+// --- FIN DE LA MODIFICACIÓN ---
 
 // --- ESTRUCTURA DE NAVEGACIÓN ---
 const items = computed(() => ([
   { label: 'Panel de Cirugías', to: { name: 'Admin' }, icon: PanelIcon, roles: ['admin','coord','user'] },
-  // --- INICIO DE LA MODIFICACIÓN ---
-  // Se elimina el objeto que define el enlace a 'Ranking IQ'.
-  // Esta ruta ya no es necesaria como un elemento principal del menú, ya que se integró como pestaña.
-  // { label: 'Ranking IQ', to: { name: 'Ranking' }, icon: RankingIcon, roles: ['admin','coord'] },
-  // --- FIN DE LA MODIFICACIÓN ---
+  { label: 'Ranking IQ', to: { name: 'Ranking' }, icon: RankingIcon, roles: ['admin','coord'] },
   { label: 'Estadísticas', to: { name: 'Estadisticas' }, badge: 'Nuevo', icon: StatsIcon, roles: ['admin','coord'] },
   { label: 'Instrumentadores', to: { name: 'Instrumentadores' }, icon: InstrumentadoresIcon, roles: ['admin','coord','user'] },
   { label: 'Incidencias', to: { name: 'Incidencias' }, icon: IncidenciasIcon, roles: ['admin','coord'] },
@@ -143,21 +142,20 @@ const items = computed(() => ([
     roles: ['admin'],
     requiresAuth: true,
     children: [
+      // --- INICIO DE LA MODIFICACIÓN ---
+      // Se reemplazan los enlaces antiguos por un único punto de entrada a la nueva estación de pagos.
       { 
-        label: 'Pendientes de Pago', 
+        label: 'Estación de Pagos', 
         to: { name: 'PagosDashboard' },
-        icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H4a3 3 0 00-3 3v8a3 3 0 003 3z' }) ]) }
+        icon: BoltIcon
       },
-      { 
-        label: 'Registrar Lote de Pago', 
-        to: { name: 'GestionPagos' },
-        icon: { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' }) ]) }
-      },
+      // Se mantiene el enlace al historial de pagos.
       { 
         label: 'Historial de Pagos', 
         to: { name: 'HistorialPagos' },
         icon: HistoryIcon
       },
+      // --- FIN DE LA MODIFICACIÓN ---
     ]
   },
   {

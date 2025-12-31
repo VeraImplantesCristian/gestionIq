@@ -2,147 +2,231 @@
 <template>
   <div class="p-4 sm:p-6 lg:p-8">
     <header class="mb-8">
-      <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">Pendientes de Pago</h1>
-      <p class="text-slate-600 dark:text-slate-400 mt-1">
-        Seleccioná uno o más instrumentadores para generar una orden de pago agrupada.
+      <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">Estación de Pagos Rápidos</h1>
+      <p class="mt-1 text-slate-600 dark:text-slate-400">
+        Filtrá, ajustá y seleccioná cirugías para generar un lote de pago en una sola operación.
       </p>
     </header>
 
-    <div v-if="isLoading" class="text-center p-10">
-      <p>Cargando resumen de pagos...</p>
+    <div v-if="isLoading" class="p-10 text-center">
+      <p>Cargando todas las cirugías pendientes...</p>
     </div>
-    <div v-else-if="error" class="bg-red-100 text-red-700 p-4 rounded-lg text-center">
+    <div v-else-if="error" class="p-4 text-center text-red-700 bg-red-100 rounded-lg">
       {{ error }}
     </div>
     
-    <div v-else>
-      <!-- Tarjetas de Resumen Superior -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div class="stat-card">
-          <h3 class="stat-title">TOTAL A PAGAR</h3>
-          <p class="stat-value">{{ formatCurrency(summary.total_general_pendiente) }}</p>
-        </div>
-        <div class="stat-card">
-          <h3 class="stat-title">INSTRUMENTADORES</h3>
-          <p class="stat-value">{{ summary.total_instrumentadores_pendientes }}</p>
-          <p class="stat-subtitle">Pendientes de revisión</p>
-        </div>
-        <div class="stat-card">
-          <h3 class="stat-title">CIRUGÍA MÁS ANTIGUA</h3>
-          <p class="stat-value">{{ formatDate(summary.cirugia_mas_antigua_general, 'long') }}</p>
-          <p v-if="summary.cirugia_mas_antigua_general" class="stat-subtitle">{{ daysSince(summary.cirugia_mas_antigua_general) }} días de retraso</p>
-        </div>
-      </div>
-
-      <!-- Barra de Filtros y Búsqueda -->
-      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow mb-6">
-        <div class="flex flex-wrap gap-4 items-center">
-          <input 
-            type="text" 
-            v-model="searchTerm"
-            placeholder="Buscar por nombre o DNI..."
-            class="form-input flex-grow"
-          />
-          <div class="flex items-center gap-2">
-            <label for="startDate" class="text-sm font-medium text-slate-500">Desde:</label>
-            <input type="date" id="startDate" v-model="filters.startDate" class="form-input" />
-          </div>
-          <div class="flex items-center gap-2">
-            <label for="endDate" class="text-sm font-medium text-slate-500">Hasta:</label>
-            <input type="date" id="endDate" v-model="filters.endDate" class="form-input" />
-          </div>
-          <button @click="applyDateFilters" class="btn-primary">Aplicar Filtros</button>
-          <button @click="clearFilters" class="btn-secondary">Limpiar</button>
-        </div>
-      </div>
-
-      <!-- Grilla de Instrumentadores -->
-      <div v-if="filteredInstrumentadores.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        <div v-for="inst in filteredInstrumentadores" :key="inst.dni" 
-             class="instrumentador-card" 
-             :class="{ 'selected': selectedInstrumentadorDNIs.includes(inst.dni) }"
-             @click="toggleInstrumentadorSelection(inst.dni)">
-          
-          <div class="checkbox-wrapper">
-            <input 
-              type="checkbox" 
-              :checked="selectedInstrumentadorDNIs.includes(inst.dni)"
-              class="checkbox"
-              @click.stop
-              @change="toggleInstrumentadorSelection(inst.dni)"
-            />
-          </div>
-
-          <div class="card-header">
-            <span class="font-bold text-lg">{{ inst.nombre_completo }}</span>
-            <span class="text-xs text-slate-500">DNI: {{ inst.dni }}</span>
-          </div>
-          <div class="card-body">
-            <p class="text-sm text-slate-500">Total Estimado</p>
-            <p class="text-3xl font-bold">{{ formatCurrency(inst.total_estimado) }}</p>
-          </div>
-          <div class="card-footer">
-            <div class="flex justify-between text-sm">
-              <span>Cirugías pendientes</span>
-              <span class="font-semibold">{{ inst.cirugias_pendientes }}</span>
+    <div v-else class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      <div class="lg:col-span-2">
+        <div class="p-4 mb-6 bg-white shadow dark:bg-slate-800 rounded-xl">
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div class="lg:col-span-2">
+              <label class="filter-label">Buscar</label>
+              <input 
+                type="text" 
+                v-model="filters.searchTerm"
+                placeholder="Paciente o instrumentador..."
+                class="form-input"
+              />
             </div>
-            <div class="flex justify-between text-sm">
-              <span>Rango de fechas</span>
-              <span class="font-semibold">{{ formatDateRange(inst.fecha_mas_antigua, inst.fecha_mas_reciente) }}</span>
+            <div>
+              <label class="filter-label">Instrumentador</label>
+              <select v-model="filters.selectedInstrumentador" class="form-input">
+                <option value="todos">Todos</option>
+                <option v-for="inst in instrumentadorOptions" :key="inst.dni" :value="inst.dni">
+                  {{ inst.nombre }}
+                </option>
+              </select>
+            </div>
+            <div class="self-end">
+              <button @click="clearFilters" class="w-full btn-secondary">Limpiar Filtros</button>
+            </div>
+            <div>
+              <label class="filter-label">Desde</label>
+              <input type="date" v-model="filters.startDate" class="form-input" />
+            </div>
+            <div>
+              <label class="filter-label">Hasta</label>
+              <input type="date" v-model="filters.endDate" class="form-input" />
+            </div>
+            <div>
+              <label class="filter-label">Monto Mín.</label>
+              <input type="number" v-model.number="filters.minAmount" placeholder="Ej: 5000" class="form-input" />
+            </div>
+            <div>
+              <label class="filter-label">Monto Máx.</label>
+              <input type="number" v-model.number="filters.maxAmount" placeholder="Ej: 10000" class="form-input" />
             </div>
           </div>
         </div>
+
+        <div class="overflow-hidden bg-white rounded-lg shadow-md dark:bg-slate-800">
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+              <thead class="bg-gray-50 dark:bg-slate-700">
+                <tr>
+                  <th scope="col" class="p-4"><input type="checkbox" @change="toggleSelectAll" :checked="areAllSelected" class="checkbox-lg" /></th>
+                  <th scope="col" class="table-header">Paciente / Fecha</th>
+                  <th scope="col" class="table-header">Instrumentador</th>
+                  <th scope="col" class="text-right table-header">Monto a Pagar</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200 dark:bg-slate-800 dark:divide-slate-700">
+                <tr v-if="filteredSurgeries.length === 0">
+                  <td colspan="4" class="px-6 py-10 text-center text-gray-500 dark:text-slate-400">No se encontraron cirugías para los filtros aplicados.</td>
+                </tr>
+                <tr v-for="surgery in filteredSurgeries" :key="surgery.id" 
+                    :class="{'bg-blue-50 dark:bg-blue-900/20': selectedSurgeryIds.includes(surgery.id)}">
+                  <td class="p-4">
+                    <input 
+                      type="checkbox" 
+                      :value="surgery.id"
+                      v-model="selectedSurgeryIds"
+                      class="checkbox-lg"
+                    />
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900 dark:text-slate-100">{{ surgery.paciente }}</div>
+                    <div class="text-sm text-gray-500">{{ formatDate(surgery.fecha_cirugia) }}</div>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-slate-400">{{ surgery.instrumentador_nombre || 'No asignado' }}</td>
+                  <td class="px-6 py-4 text-sm text-right whitespace-nowrap">
+                    <input 
+                      type="number"
+                      v-model.number="surgery.monto_a_pagar"
+                      class="form-input-table"
+                      @focus="$event.target.select()"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
-      <div v-else class="text-center p-10 bg-white dark:bg-slate-800 rounded-xl shadow">
-        <p class="text-slate-500">No se encontraron instrumentadores con pagos pendientes para los filtros seleccionados.</p>
+
+      <div class="lg:col-span-1">
+        <div class="sticky top-8">
+          <div class="p-6 bg-white shadow dark:bg-slate-800 rounded-xl">
+            <h2 class="mb-4 text-xl font-bold">Resumen de Pago</h2>
+            <div v-if="selectedSurgeryIds.length === 0" class="py-10 text-center text-slate-500">
+              <p>Seleccioná una o más cirugías de la lista para comenzar.</p>
+            </div>
+            <div v-else>
+              <div class="mb-4 space-y-3">
+                <div v-for="inst in paymentSummary.instrumentadores" :key="inst.dni" class="text-sm">
+                  <div class="flex justify-between font-medium">
+                    <span>{{ inst.nombre }}</span>
+                    <span>{{ formatCurrency(inst.monto_total) }}</span>
+                  </div>
+                  <div class="text-xs text-slate-500">{{ inst.cirugias_count }} cirugía(s)</div>
+                </div>
+              </div>
+
+              <div class="pt-4 mb-6 border-t border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between text-lg font-bold">
+                  <span>TOTAL GENERAL</span>
+                  <span>{{ formatCurrency(paymentSummary.monto_total_general) }}</span>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <textarea v-model="paymentNotes" placeholder="Notas adicionales (opcional)..." class="h-20 form-input"></textarea>
+                <!-- --- INICIO DE LA MODIFICACIÓN --- -->
+                <FileUpload 
+                  v-if="showFileUploader"
+                  ref="fileUploader" 
+                  :owner-id="Date.now().toString()" 
+                />
+                <!-- --- FIN DE LA MODIFICACIÓN --- -->
+              </div>
+
+              <div class="mt-6">
+                <button 
+                  @click="registrarPago" 
+                  :disabled="isSubmitting || !fileUploader?.hasFiles"
+                  class="w-full btn-primary"
+                >
+                  <span v-if="isSubmitting">Registrando Pago...</span>
+                  <span v-else>Registrar Orden de Pago</span>
+                </button>
+                <p v-if="!fileUploader?.hasFiles" class="mt-2 text-xs text-center text-red-500">Se requiere un comprobante para continuar.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-
-    <!-- Barra de Acción para generar la Orden de Pago -->
-    <Transition name="slide-up">
-      <div v-if="selectedInstrumentadorDNIs.length > 0" class="action-bar">
-        <div class="action-bar-content">
-          <span class="font-semibold">{{ selectedInstrumentadorDNIs.length }} instrumentador(es) seleccionado(s)</span>
-          <button @click="generarOrdenDePago" class="btn-primary">
-            Generar Orden de Pago ({{ selectedInstrumentadorDNIs.length }})
-          </button>
-        </div>
-      </div>
-    </Transition>
+    
+    <PostPagoModal 
+      :show="isPostPagoModalVisible" 
+      :payment-data="lastPaymentData"
+      @close="isPostPagoModalVisible = false"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+// --- INICIO DE LA MODIFICACIÓN ---
+import { ref, computed, onMounted, reactive, nextTick } from 'vue';
+// --- FIN DE LA MODIFICACIÓN ---
 import { supabase } from '../../services/supabase';
 import { useToast } from 'vue-toastification';
+import FileUpload from '../../components/uploader/FileUpload.vue';
+import PostPagoModal from '../../components/PostPagoModal.vue';
 
-const router = useRouter();
 const toast = useToast();
 
 const isLoading = ref(true);
 const error = ref(null);
-const summary = ref({});
-const instrumentadores = ref([]);
-const searchTerm = ref('');
-const filters = reactive({ startDate: null, endDate: null });
-const selectedInstrumentadorDNIs = ref([]);
+const allPendingSurgeries = ref([]);
+const selectedSurgeryIds = ref([]);
+const paymentNotes = ref('');
+const fileUploader = ref(null);
+const isSubmitting = ref(false);
+const isPostPagoModalVisible = ref(false);
+const lastPaymentData = ref(null);
+// --- INICIO DE LA MODIFICACIÓN ---
+const showFileUploader = ref(true);
+// --- FIN DE LA MODIFICACIÓN ---
+
+const filters = reactive({
+  searchTerm: '',
+  selectedInstrumentador: 'todos',
+  startDate: '',
+  endDate: '',
+  minAmount: null,
+  maxAmount: null,
+});
+
+const clearFilters = () => {
+  filters.searchTerm = '';
+  filters.selectedInstrumentador = 'todos';
+  filters.startDate = '';
+  filters.endDate = '';
+  filters.minAmount = null;
+  filters.maxAmount = null;
+};
+
+const instrumentadorOptions = computed(() => {
+  if (!allPendingSurgeries.value) return [];
+  const instrumentadores = allPendingSurgeries.value.reduce((acc, surgery) => {
+    if (surgery.instrumentador_dni && !acc.some(i => i.dni === surgery.instrumentador_dni)) {
+      acc.push({ dni: surgery.instrumentador_dni, nombre: surgery.instrumentador_nombre });
+    }
+    return acc;
+  }, []);
+  return instrumentadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
+});
 
 const fetchData = async () => {
   isLoading.value = true;
   error.value = null;
   try {
-    const { data, error: rpcError } = await supabase.rpc('obtener_resumen_pagos_pendientes', {
-      p_start_date: filters.startDate || null,
-      p_end_date: filters.endDate || null
-    });
+    const { data, error: rpcError } = await supabase.rpc('get_todas_cirugias_pendientes');
     if (rpcError) throw rpcError;
-    
-    summary.value = data.summary;
-    instrumentadores.value = data.instrumentadores;
+    allPendingSurgeries.value = data || [];
   } catch (err) {
-    error.value = "No se pudo cargar el resumen de pagos.";
+    error.value = "No se pudo cargar la lista de cirugías pendientes.";
     toast.error(err.message);
   } finally {
     isLoading.value = false;
@@ -151,72 +235,162 @@ const fetchData = async () => {
 
 onMounted(fetchData);
 
-const applyDateFilters = () => fetchData();
+const filteredSurgeries = computed(() => {
+  let surgeries = [...allPendingSurgeries.value];
 
-const clearFilters = () => {
-  filters.startDate = null;
-  filters.endDate = null;
-  searchTerm.value = '';
-  fetchData();
-};
-
-const filteredInstrumentadores = computed(() => {
-  if (!searchTerm.value) {
-    return instrumentadores.value;
+  if (filters.searchTerm) {
+    const lowerCaseSearch = filters.searchTerm.toLowerCase();
+    surgeries = surgeries.filter(surgery => {
+      const pacienteMatch = surgery.paciente ? surgery.paciente.toLowerCase().includes(lowerCaseSearch) : false;
+      const instrumentadorMatch = surgery.instrumentador_nombre ? surgery.instrumentador_nombre.toLowerCase().includes(lowerCaseSearch) : false;
+      return pacienteMatch || instrumentadorMatch;
+    });
   }
-  const lowerCaseSearch = searchTerm.value.toLowerCase();
-  return instrumentadores.value.filter(inst => 
-    inst.nombre_completo.toLowerCase().includes(lowerCaseSearch) ||
-    inst.dni.includes(lowerCaseSearch)
-  );
+
+  if (filters.selectedInstrumentador !== 'todos') {
+    surgeries = surgeries.filter(surgery => surgery.instrumentador_dni === filters.selectedInstrumentador);
+  }
+
+  if (filters.startDate) {
+    surgeries = surgeries.filter(surgery => new Date(surgery.fecha_cirugia) >= new Date(filters.startDate));
+  }
+
+  if (filters.endDate) {
+    surgeries = surgeries.filter(surgery => new Date(surgery.fecha_cirugia) <= new Date(filters.endDate));
+  }
+
+  if (filters.minAmount !== null && filters.minAmount > 0) {
+    surgeries = surgeries.filter(surgery => surgery.monto_a_pagar >= filters.minAmount);
+  }
+
+  if (filters.maxAmount !== null && filters.maxAmount > 0) {
+    surgeries = surgeries.filter(surgery => surgery.monto_a_pagar <= filters.maxAmount);
+  }
+
+  return surgeries;
 });
 
-const toggleInstrumentadorSelection = (dni) => {
-  const index = selectedInstrumentadorDNIs.value.indexOf(dni);
-  if (index > -1) {
-    selectedInstrumentadorDNIs.value.splice(index, 1);
+const areAllSelected = computed(() => 
+  filteredSurgeries.value.length > 0 && selectedSurgeryIds.value.length === filteredSurgeries.value.length
+);
+
+const toggleSelectAll = (event) => {
+  if (event.target.checked) {
+    selectedSurgeryIds.value = filteredSurgeries.value.map(s => s.id);
   } else {
-    selectedInstrumentadorDNIs.value.push(dni);
+    selectedSurgeryIds.value = [];
   }
 };
 
-const generarOrdenDePago = () => {
-  if (selectedInstrumentadorDNIs.value.length === 0) {
-    toast.warning("Debes seleccionar al menos un instrumentador.");
-    return;
-  }
-  router.push({ 
-    name: 'CrearOrdenDePago', 
-    query: { dnis: selectedInstrumentadorDNIs.value.join(',') } 
+const paymentSummary = computed(() => {
+  const summary = {
+    instrumentadores: {},
+    monto_total_general: 0,
+  };
+  const selected = allPendingSurgeries.value.filter(s => selectedSurgeryIds.value.includes(s.id));
+  selected.forEach(surgery => {
+    const dni = surgery.instrumentador_dni || 'sin-asignar';
+    const nombre = surgery.instrumentador_nombre || 'No Asignado';
+    const token = surgery.activity_token;
+
+    if (!summary.instrumentadores[dni]) {
+      summary.instrumentadores[dni] = {
+        dni: dni,
+        nombre: nombre,
+        monto_total: 0,
+        cirugias: [],
+        cirugias_count: 0,
+        activity_token: token,
+      };
+    }
+    const inst = summary.instrumentadores[dni];
+    const monto = Number(surgery.monto_a_pagar) || 0;
+    inst.monto_total += monto;
+    inst.cirugias.push({ id: surgery.id, monto: monto });
+    inst.cirugias_count++;
+    summary.monto_total_general += monto;
   });
+  summary.instrumentadores = Object.values(summary.instrumentadores);
+  return summary;
+});
+
+const registrarPago = async () => {
+  if (isSubmitting.value || !fileUploader.value?.hasFiles) return;
+
+  isSubmitting.value = true;
+  const toastId = toast.info("Subiendo comprobante...", { timeout: false });
+
+  try {
+    const uploadResult = await fileUploader.value.startUpload('comprobantes-pago');
+    if (!uploadResult || uploadResult.length === 0) throw new Error("La subida del archivo falló.");
+    
+    const objectKey = uploadResult[0].objectKey;
+    toast.update(toastId, { content: "Comprobante subido. Registrando orden de pago..." });
+
+    const ordenDePago = {
+      monto_total_general: paymentSummary.value.monto_total_general,
+      comprobante_object_key: objectKey,
+      notas: paymentNotes.value,
+      pagos: paymentSummary.value.instrumentadores
+        .filter(inst => inst.dni !== 'sin-asignar')
+        .map(inst => ({
+          instrumentador_dni: inst.dni,
+          monto_total_instrumentador: inst.monto_total,
+          cirugias: inst.cirugias.map(c => c.id)
+      }))
+    };
+
+    if (ordenDePago.pagos.length === 0) {
+      throw new Error("No hay pagos válidos para registrar (verifique asignación de instrumentadores).");
+    }
+
+    const { error: rpcError } = await supabase.rpc('registrar_orden_de_pago', { p_orden: ordenDePago });
+    if (rpcError) throw rpcError;
+
+    toast.update(toastId, { content: "¡Orden de pago registrada con éxito!", options: { type: 'success', timeout: 3000 } });
+    
+    lastPaymentData.value = JSON.parse(JSON.stringify(paymentSummary.value));
+    
+    selectedSurgeryIds.value = [];
+    paymentNotes.value = '';
+    
+    // --- INICIO DE LA MODIFICACIÓN ---
+    // Se implementa el reseteo del componente FileUpload.
+    showFileUploader.value = false;
+    await nextTick();
+    showFileUploader.value = true;
+    // --- FIN DE LA MODIFICACIÓN ---
+    
+    clearFilters();
+    
+    isPostPagoModalVisible.value = true;
+    
+    fetchData();
+
+  } catch (err) {
+    console.error("Error al registrar el pago:", err);
+    toast.update(toastId, { content: `Error: ${err.message}`, options: { type: 'error', timeout: 5000 } });
+  } finally {
+    isSubmitting.value = false;
+  }
 };
 
 const formatCurrency = (value) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value || 0);
-const formatDate = (dateString, format = 'short') => {
+const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
-  const options = format === 'long' 
-    ? { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' }
-    : { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' };
-  return new Date(dateString).toLocaleDateString('es-ES', options);
-};
-const formatDateRange = (start, end) => `${formatDate(start)} - ${formatDate(end)}`;
-const daysSince = (dateString) => {
-  if (!dateString) return 0;
-  const diffTime = Math.abs(new Date() - new Date(dateString));
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+  return new Date(dateString).toLocaleDateString('es-AR', { timeZone: 'UTC' });
 };
 </script>
 
 <style scoped>
-.stat-card { @apply bg-white dark:bg-slate-800 p-6 rounded-xl shadow; }
-.stat-title { @apply text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider; }
-.stat-value { @apply text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1; }
-.stat-subtitle { @apply text-xs text-slate-400; }
-.form-input { @apply px-4 py-2 border border-slate-300 rounded-md; @apply dark:bg-slate-700 dark:border-slate-600; }
-.instrumentador-card { @apply bg-white dark:bg-slate-800 rounded-xl shadow flex flex-col transition-transform duration-200 hover:-translate-y-1; }
-.card-header { @apply p-4 border-b border-slate-100 dark:border-slate-700; }
-.card-body { @apply p-4 flex-grow; }
-.card-footer { @apply p-4 bg-slate-50 dark:bg-slate-800/50 rounded-b-xl space-y-2; }
-.btn-primary { @apply bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors; @apply hover:bg-blue-700; }
+.form-input { @apply px-4 py-2 border border-slate-300 rounded-md w-full; @apply dark:bg-slate-700 dark:border-slate-600; }
+.table-header { @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-slate-400; }
+.checkbox-lg { @apply h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500 border-gray-300; }
+.btn-primary { @apply bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors; @apply hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed; }
 .btn-secondary { @apply bg-slate-200 text-slate-700 font-semibold py-2 px-4 rounded-lg; @apply hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600; }
+.filter-label { @apply block text-xs font-medium text-slate-500 mb-1; }
+.form-input-table {
+  @apply w-28 text-right bg-slate-50 dark:bg-slate-700 border border-transparent rounded-md px-2 py-1;
+  @apply focus:bg-white focus:dark:bg-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500;
+}
 </style>

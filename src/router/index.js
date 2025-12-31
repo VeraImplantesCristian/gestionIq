@@ -1,7 +1,6 @@
 // src/router/index.js
 
 import { createRouter, createWebHistory } from 'vue-router';
-// Importa el cliente de Supabase para la lógica de autenticación.
 import { supabase } from '../services/supabase';
 
 // --- Vistas y Layouts ---
@@ -12,10 +11,6 @@ import LoginView from '../views/LoginView.vue';
 import StatsView from '../views/StatsView.vue';
 import InstrumentadoresView from '../views/InstrumentadoresView.vue';
 import IncidenciasView from '../views/IncidenciasView.vue';
-// --- INICIO DE LA MODIFICACIÓN ---
-// Se elimina la importación de RankingView, ya que el archivo fue movido y renombrado.
-// import RankingView from '../views/RankingView.vue';
-// --- FIN DE LA MODIFICACIÓN ---
 import ReclamoView from '../views/ReclamoView.vue';
 import QuejasView from '../views/QuejasView.vue';
 import PedidosEspecialesView from '../views/PedidosEspecialesView.vue';
@@ -24,9 +19,13 @@ import ActivitySummaryView from '../views/ActivitySummaryView.vue';
 import LogisticaControl from '../views/logistica/LogisticaControl.vue';
 import InstrumentadorUpload from '../views/instrumentadores/InstrumentadorUpload.vue';
 import ConsumoView from '../views/logistica/ConsumoView.vue';
-import GestionPagosView from '../views/admin/GestionPagosView.vue';
+// --- INICIO DE LA MODIFICACIÓN ---
+// Se elimina la importación de GestionPagosView, ya que su funcionalidad se ha consolidado.
+// import GestionPagosView from '../views/admin/GestionPagosView.vue';
 import PagosDashboardView from '../views/admin/PagosDashboardView.vue';
-import CrearOrdenDePagoView from '../views/admin/CrearOrdenDePagoView.vue';
+// Se elimina la importación de CrearOrdenDePagoView, ya que es obsoleta.
+// import CrearOrdenDePagoView from '../views/admin/CrearOrdenDePagoView.vue';
+// --- FIN DE LA MODIFICACIÓN ---
 import HistorialPagosView from '../views/admin/HistorialPagosView.vue';
 
 
@@ -73,11 +72,6 @@ const routes = [
       { path: 'estadisticas', name: 'Estadisticas', component: StatsView },
       { path: 'instrumentadores', name: 'Instrumentadores', component: InstrumentadoresView },
       { path: 'incidencias', name: 'Incidencias', component: IncidenciasView },
-      // --- INICIO DE LA MODIFICACIÓN ---
-      // Se elimina la definición de la ruta 'ranking', ya que ahora es una pestaña
-      // dentro de 'instrumentadores' y no una página independiente.
-      // { path: 'ranking', name: 'Ranking', component: RankingView },
-      // --- FIN DE LA MODIFICACIÓN ---
       { path: 'quejas', name: 'Quejas', component: QuejasView },
       { path: 'pedidos-especiales', name: 'PedidosEspeciales', component: PedidosEspecialesView },
       { path: 'notificaciones', name: 'Notificaciones', component: NotificationsView },
@@ -85,24 +79,29 @@ const routes = [
       { path: 'instrumentador-upload', name: 'InstrumentadorUpload', component: InstrumentadorUpload },
       { path: 'control-consumo', name: 'ControlConsumo', component: ConsumoView },
       
-      { 
-        path: 'gestion-pagos', 
-        name: 'GestionPagos', 
-        component: GestionPagosView,
-        meta: { requiredRole: 'admin' }
-      },
+      // --- INICIO DE LA MODIFICACIÓN ---
+      // Se elimina la ruta 'gestion-pagos' para simplificar.
+      // { 
+      //   path: 'gestion-pagos', 
+      //   name: 'GestionPagos', 
+      //   component: GestionPagosView,
+      //   meta: { requiredRole: 'admin' }
+      // },
       {
+        // La ruta '/pagos' ahora apunta a nuestra nueva estación de trabajo.
         path: 'pagos',
         name: 'PagosDashboard',
         component: PagosDashboardView,
         meta: { requiredRole: 'admin' }
       },
-      {
-        path: 'crear-orden-pago',
-        name: 'CrearOrdenDePago',
-        component: CrearOrdenDePagoView,
-        meta: { requiredRole: 'admin' }
-      },
+      // Se elimina la ruta 'crear-orden-pago' por ser obsoleta.
+      // {
+      //   path: 'crear-orden-pago',
+      //   name: 'CrearOrdenDePago',
+      //   component: CrearOrdenDePagoView,
+      //   meta: { requiredRole: 'admin' }
+      // },
+      // --- FIN DE LA MODIFICACIÓN ---
       {
         path: 'historial-pagos',
         name: 'HistorialPagos',
@@ -119,33 +118,24 @@ const router = createRouter({
 });
 
 // --- Guardia de Navegación Global (con verificación de rol) ---
-// Esta función se ejecuta antes de cada cambio de ruta.
 router.beforeEach(async (to, from, next) => {
-  // Obtiene la sesión actual del usuario desde Supabase.
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
   
-  // Verifica si la ruta destino requiere autenticación.
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-  // Obtiene el rol requerido para la ruta, si lo tiene.
   const requiredRole = to.meta.requiredRole;
 
-  // Si la ruta requiere autenticación y no hay usuario, redirige al Login.
   if (requiresAuth && !user) {
     return next({ name: 'Login' });
   }
   
-  // Si la ruta requiere un rol específico...
   if (requiredRole) {
-    // ...y el rol del usuario no coincide, se deniega el acceso.
     if (user?.app_metadata?.role !== requiredRole) {
       console.warn(`Acceso denegado a '${to.path}'. Rol requerido: '${requiredRole}', Rol del usuario: '${user?.app_metadata?.role}'.`);
-      // Redirige a una página segura, como el dashboard principal.
       return next({ name: 'Admin' });
     }
   }
 
-  // Si todas las comprobaciones pasan, permite la navegación.
   next();
 });
 
