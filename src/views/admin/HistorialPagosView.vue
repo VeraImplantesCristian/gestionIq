@@ -1,73 +1,71 @@
 <template>
-  <!-- Contenedor principal de la vista -->
-  <div class="historial-pagos-view">
-    <h1>Historial de Órdenes de Pago</h1>
-    <p class="subtitle">Aquí puedes auditar todas las órdenes de pago que han sido procesadas.</p>
+  <div class="p-4 sm:p-6 lg:p-8">
+    <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">Historial de Órdenes de Pago</h1>
+    <p class="text-slate-600 dark:text-slate-400 mt-1 mb-8">Aquí puedes auditar todas las órdenes de pago que han sido procesadas.</p>
 
-    <!-- Muestra un mensaje de carga mientras se obtienen los datos -->
-    <div v-if="isLoading" class="loading-state">
+    <div v-if="isLoading" class="text-center p-10">
       <p>Cargando historial...</p>
     </div>
 
-    <!-- Muestra un mensaje de error si la carga falla -->
-    <div v-else-if="error" class="error-state">
+    <div v-else-if="error" class="bg-red-100 text-red-700 p-4 rounded-lg text-center">
       <p>Error al cargar el historial: {{ error }}</p>
     </div>
 
-    <!-- Muestra un mensaje si no hay órdenes de pago registradas en total -->
-    <div v-else-if="historial.length === 0" class="empty-state">
-      <p>Aún no se han registrado órdenes de pago.</p>
+    <div v-else-if="historial.length === 0" class="text-center p-10 bg-white dark:bg-slate-800 rounded-xl shadow">
+      <p class="text-slate-500">Aún no se han registrado órdenes de pago.</p>
     </div>
 
-    <!-- Si hay datos, muestra los filtros y la tabla -->
     <div v-else>
-      <!-- Contenedor para los nuevos campos de filtro -->
-      <div class="filters-container">
-        <input type="text" v-model="dniFilter" placeholder="Filtrar por DNI..." class="filter-input"/>
-        <div class="date-filter-group">
-          <label for="start-date">Desde:</label>
-          <input id="start-date" type="date" v-model="startDateFilter" class="filter-input"/>
-        </div>
-        <div class="date-filter-group">
-          <label for="end-date">Hasta:</label>
-          <input id="end-date" type="date" v-model="endDateFilter" class="filter-input"/>
+      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input type="text" v-model="dniFilter" placeholder="Filtrar por DNI..." class="form-input"/>
+          <input id="start-date" type="date" v-model="startDateFilter" class="form-input"/>
+          <input id="end-date" type="date" v-model="endDateFilter" class="form-input"/>
         </div>
       </div>
 
-      <!-- Muestra un mensaje si los filtros no arrojan resultados -->
-      <div v-if="filteredHistorial.length === 0" class="empty-state">
-        <p>No se encontraron órdenes de pago que coincidan con los filtros aplicados.</p>
+      <div v-if="filteredHistorial.length === 0" class="text-center p-10 bg-white dark:bg-slate-800 rounded-xl shadow">
+        <p class="text-slate-500">No se encontraron órdenes de pago que coincidan con los filtros aplicados.</p>
       </div>
 
-      <!-- Muestra la tabla con el historial filtrado -->
-      <div v-else class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>ID Orden</th>
-              <th>Fecha de Emisión</th>
-              <th>Monto Total</th>
-              <th>N° Instrumentadores</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- La tabla ahora itera sobre la lista filtrada 'filteredHistorial' -->
-            <tr v-for="orden in filteredHistorial" :key="orden.id">
-              <td>#{{ orden.id }}</td>
-              <td>{{ new Date(orden.fecha_emision).toLocaleDateString('es-AR', { timeZone: 'UTC' }) }}</td>
-              <td>{{ orden.monto_total_general.toLocaleString('es-ar', { style: 'currency', currency: 'ARS' }) }}</td>
-              <td>{{ orden.instrumentadores_count }}</td>
-              <td>
-                <button @click="verDetalle(orden)">Ver Detalle</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else class="bg-white dark:bg-slate-800 shadow-md rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+            <thead class="bg-gray-50 dark:bg-slate-700">
+              <tr>
+                <th class="table-header">ID Orden</th>
+                <th class="table-header">Fecha de Emisión</th>
+                <th class="table-header">Monto Total</th>
+                <th class="table-header">Instrumentador(es)</th>
+                <th class="table-header text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200 dark:bg-slate-800 dark:divide-slate-700">
+              <tr v-for="orden in filteredHistorial" :key="orden.id">
+                <td class="table-cell font-medium">#{{ orden.id }}</td>
+                <td class="table-cell">{{ formatDate(orden.fecha_emision) }}</td>
+                <td class="table-cell">{{ formatCurrency(orden.monto_total_general) }}</td>
+                <td class="table-cell text-xs max-w-xs truncate">{{ orden.instrumentadores_nombres }}</td>
+                <td class="table-cell text-center">
+                  <div class="flex items-center justify-center gap-2">
+                    <button @click="verDetalle(orden)" class="btn-secondary">Ver Detalle</button>
+                    <a v-if="orden.comprobante_object_key" 
+                       :href="getComprobanteUrl(orden.comprobante_object_key)" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       class="btn-icon"
+                       title="Descargar Comprobante">
+                      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- El componente del modal no cambia -->
     <OrdenDePagoDetalleModal
       :is-visible="isModalVisible"
       :orden-id="selectedOrdenId"
@@ -78,16 +76,9 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-// --- INICIO DE LA CORRECCIÓN ---
-// 1. Se corrige la importación de Supabase para que sea un import NOMBRADO
-//    y use una ruta RELATIVA, consistente con el resto de tu proyecto.
 import { supabase } from '../../services/supabase';
-// 2. Se corrige la importación del Modal para que use una ruta RELATIVA,
-//    lo que garantiza que Vite lo encontrará sin problemas.
 import OrdenDePagoDetalleModal from '../../components/admin/OrdenDePagoDetalleModal.vue';
-// --- FIN DE LA CORRECCIÓN ---
 
-// --- ESTADO REACTIVO ---
 const historial = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
@@ -97,7 +88,6 @@ const dniFilter = ref('');
 const startDateFilter = ref('');
 const endDateFilter = ref('');
 
-// --- LÓGICA COMPUTADA (FILTRADO) ---
 const filteredHistorial = computed(() => {
   let items = historial.value;
 
@@ -110,23 +100,31 @@ const filteredHistorial = computed(() => {
 
   if (startDateFilter.value) {
     const startDate = new Date(startDateFilter.value);
+    startDate.setUTCHours(0, 0, 0, 0);
     items = items.filter(orden => new Date(orden.fecha_emision) >= startDate);
   }
 
   if (endDateFilter.value) {
     const endDate = new Date(endDateFilter.value);
+    endDate.setUTCHours(23, 59, 59, 999);
     items = items.filter(orden => new Date(orden.fecha_emision) <= endDate);
   }
 
   return items;
 });
 
-// --- LÓGICA DE MÉTODOS ---
 async function fetchHistorial() {
   try {
+    isLoading.value = true;
     const { data, error: rpcError } = await supabase.rpc('obtener_historial_ordenes_pago');
     if (rpcError) throw rpcError;
-    historial.value = data;
+    
+    // --- INICIO DE LA MODIFICACIÓN ---
+    // Se añade un console.log para inspeccionar los datos crudos que llegan del backend.
+    console.log('Datos recibidos del historial:', data);
+    // --- FIN DE LA MODIFICACIÓN ---
+
+    historial.value = data || [];
   } catch (err) {
     console.error('Error al obtener el historial de pagos:', err);
     error.value = err.message;
@@ -145,70 +143,26 @@ function closeModal() {
   selectedOrdenId.value = null;
 }
 
-// --- CICLO DE VIDA ---
+const formatCurrency = (value) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value || 0);
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleDateString('es-AR', { timeZone: 'UTC' });
+};
+const getComprobanteUrl = (objectKey) => {
+  if (!objectKey) return '#';
+  const R2_PUBLIC_URL = import.meta.env.VITE_R2_PUBLIC_URL;
+  return `${R2_PUBLIC_URL}/${objectKey}`;
+};
+
 onMounted(() => {
   fetchHistorial();
 });
 </script>
 
 <style scoped>
-.historial-pagos-view {
-  padding: 2rem;
-}
-.subtitle {
-  color: #666;
-  margin-bottom: 2rem;
-}
-.filters-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-}
-.filter-input {
-  padding: 0.6rem;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  font-size: 0.9rem;
-}
-.date-filter-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.table-container {
-  overflow-x: auto;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-th, td {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #eee;
-}
-th {
-  background-color: #f9f9f9;
-}
-button {
-  cursor: pointer;
-  padding: 0.5rem 1rem;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-  background-color: #fff;
-}
-button:hover {
-  background-color: #f0f0f0;
-}
-.loading-state, .error-state, .empty-state {
-  text-align: center;
-  padding: 2rem;
-  color: #888;
-  background-color: #fafafa;
-  border-radius: 8px;
-}
+.form-input { @apply px-4 py-2 border border-slate-300 rounded-md w-full; @apply dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200; }
+.table-header { @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-slate-400; }
+.table-cell { @apply px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300; }
+.btn-secondary { @apply bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-1.5 px-3 rounded-lg text-sm; @apply hover:bg-slate-50 dark:hover:bg-slate-600; }
+.btn-icon { @apply p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-700 dark:hover:text-slate-200; }
 </style>

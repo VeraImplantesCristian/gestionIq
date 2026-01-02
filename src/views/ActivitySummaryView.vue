@@ -95,9 +95,6 @@
       <!-- TAB 3: FAQ -->
       <FaqSection v-else />
 
-      <!-- --- INICIO DE LA MODIFICACIÓN --- -->
-      <!-- El botón flotante de WhatsApp ha sido eliminado de esta vista. -->
-      <!-- --- FIN DE LA MODIFICACIÓN --- -->
     </div>
 
     <!-- Modal de Detalle de Pago -->
@@ -127,10 +124,6 @@ const selectedReport = ref(null);
 const route = useRoute();
 const toast = useToast();
 const token = route.params.token;
-
-// --- INICIO DE LA MODIFICACIÓN ---
-// La constante whatsappLink se elimina ya que el botón flotante no existe más en este componente.
-// --- FIN DE LA MODIFICACIÓN ---
 
 const authenticate = async () => {
   if (!dni.value.trim()) {
@@ -166,27 +159,40 @@ const authenticate = async () => {
 
 const pendientes = computed(() => allActivityData.value.filter(r => r.estado_pago === 'Pendiente'));
 
+// --- INICIO DE LA MODIFICACIÓN ---
+// Se refactoriza la propiedad computada para una agrupación y ordenamiento correctos.
 const pagadasAgrupadas = computed(() => {
-  const pagadas = allActivityData.value.filter(r => r.estado_pago === 'Pagado');
+  // 1. Filtra solo las cirugías pagadas que tengan una fecha de pago.
+  const pagadas = allActivityData.value.filter(r => r.estado_pago === 'Pagado' && r.fecha_pago);
+  
+  // 2. Ordena las cirugías por fecha de pago, de la más reciente a la más antigua.
+  //    Esto asegura que los meses aparezcan en orden cronológico inverso.
+  pagadas.sort((a, b) => new Date(b.fecha_pago) - new Date(a.fecha_pago));
+
+  // 3. Agrupa las cirugías ordenadas por mes.
   return pagadas.reduce((acc, report) => {
-    if (!report.fecha_pago) return acc;
+    // Se usa consistentemente 'fecha_pago' para la agrupación.
     const month = new Date(report.fecha_pago).toLocaleString('es-AR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
     const capitalizedMonth = month.charAt(0).toUpperCase() + month.slice(1);
-    if (!acc[capitalizedMonth]) acc[capitalizedMonth] = [];
+    
+    if (!acc[capitalizedMonth]) {
+      acc[capitalizedMonth] = [];
+    }
     acc[capitalizedMonth].push(report);
     return acc;
   }, {});
 });
+// --- FIN DE LA MODIFICACIÓN ---
 
 const cirugiasPendientesCount = computed(() => pendientes.value.length);
 
 const cirugiasCobradasMesCount = computed(() => {
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getUTCMonth();
+  const currentYear = new Date().getUTCFullYear();
   return allActivityData.value.filter(r => {
     if (r.estado_pago !== 'Pagado' || !r.fecha_pago) return false;
     const paymentDate = new Date(r.fecha_pago);
-    return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
+    return paymentDate.getUTCMonth() === currentMonth && paymentDate.getUTCFullYear() === currentYear;
   }).length;
 });
 
@@ -224,7 +230,4 @@ const getComprobanteUrl = (objectKey) => {
 .action-link { @apply text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer; }
 .action-link-secondary { @apply text-slate-400 hover:text-slate-600 dark:hover:text-slate-200; }
 .empty-state { @apply text-center p-8 bg-white dark:bg-slate-800 rounded-xl shadow text-slate-500; }
-/* --- INICIO DE LA MODIFICACIÓN --- */
-/* Se elimina el estilo .whatsapp-fab ya que el elemento no existe. */
-/* --- FIN DE LA MODIFICACIÓN --- */
 </style>

@@ -3,22 +3,23 @@
   <div class="p-4 sm:p-6 lg:p-8">
     <header class="mb-8">
       <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">Estación de Pagos Rápidos</h1>
-      <p class="mt-1 text-slate-600 dark:text-slate-400">
+      <p class="text-slate-600 dark:text-slate-400 mt-1">
         Filtrá, ajustá y seleccioná cirugías para generar un lote de pago en una sola operación.
       </p>
     </header>
 
-    <div v-if="isLoading" class="p-10 text-center">
+    <div v-if="isLoading" class="text-center p-10">
       <p>Cargando todas las cirugías pendientes...</p>
     </div>
-    <div v-else-if="error" class="p-4 text-center text-red-700 bg-red-100 rounded-lg">
+    <div v-else-if="error" class="bg-red-100 text-red-700 p-4 rounded-lg text-center">
       {{ error }}
     </div>
     
-    <div v-else class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+    <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Columna Principal: Tabla de Cirugías -->
       <div class="lg:col-span-2">
-        <div class="p-4 mb-6 bg-white shadow dark:bg-slate-800 rounded-xl">
-          <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow mb-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="lg:col-span-2">
               <label class="filter-label">Buscar</label>
               <input 
@@ -38,7 +39,7 @@
               </select>
             </div>
             <div class="self-end">
-              <button @click="clearFilters" class="w-full btn-secondary">Limpiar Filtros</button>
+              <button @click="clearFilters" class="btn-secondary w-full">Limpiar Filtros</button>
             </div>
             <div>
               <label class="filter-label">Desde</label>
@@ -59,7 +60,7 @@
           </div>
         </div>
 
-        <div class="overflow-hidden bg-white rounded-lg shadow-md dark:bg-slate-800">
+        <div class="bg-white dark:bg-slate-800 shadow-md rounded-lg overflow-hidden">
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
               <thead class="bg-gray-50 dark:bg-slate-700">
@@ -67,7 +68,7 @@
                   <th scope="col" class="p-4"><input type="checkbox" @change="toggleSelectAll" :checked="areAllSelected" class="checkbox-lg" /></th>
                   <th scope="col" class="table-header">Paciente / Fecha</th>
                   <th scope="col" class="table-header">Instrumentador</th>
-                  <th scope="col" class="text-right table-header">Monto a Pagar</th>
+                  <th scope="col" class="table-header text-right">Monto a Pagar</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200 dark:bg-slate-800 dark:divide-slate-700">
@@ -75,26 +76,29 @@
                   <td colspan="4" class="px-6 py-10 text-center text-gray-500 dark:text-slate-400">No se encontraron cirugías para los filtros aplicados.</td>
                 </tr>
                 <tr v-for="surgery in filteredSurgeries" :key="surgery.id" 
-                    :class="{'bg-blue-50 dark:bg-blue-900/20': selectedSurgeryIds.includes(surgery.id)}">
+                    :class="{'bg-blue-50 dark:bg-blue-900/20': selectedSurgeryIds.includes(surgery.id),
+                      'opacity-50 text-slate-400 line-through': justPaidSurgeryIds.has(surgery.id)}">
                   <td class="p-4">
                     <input 
                       type="checkbox" 
                       :value="surgery.id"
                       v-model="selectedSurgeryIds"
                       class="checkbox-lg"
+                      :disabled="justPaidSurgeryIds.has(surgery.id)"
                     />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <div class="text-sm font-medium text-gray-900 dark:text-slate-100">{{ surgery.paciente }}</div>
                     <div class="text-sm text-gray-500">{{ formatDate(surgery.fecha_cirugia) }}</div>
                   </td>
-                  <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-slate-400">{{ surgery.instrumentador_nombre || 'No asignado' }}</td>
-                  <td class="px-6 py-4 text-sm text-right whitespace-nowrap">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{{ surgery.instrumentador_nombre || 'No asignado' }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
                     <input 
                       type="number"
                       v-model.number="surgery.monto_a_pagar"
                       class="form-input-table"
                       @focus="$event.target.select()"
+                      :disabled="justPaidSurgeryIds.has(surgery.id)"
                     />
                   </td>
                 </tr>
@@ -106,13 +110,13 @@
 
       <div class="lg:col-span-1">
         <div class="sticky top-8">
-          <div class="p-6 bg-white shadow dark:bg-slate-800 rounded-xl">
-            <h2 class="mb-4 text-xl font-bold">Resumen de Pago</h2>
-            <div v-if="selectedSurgeryIds.length === 0" class="py-10 text-center text-slate-500">
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-6">
+            <h2 class="text-xl font-bold mb-4">Resumen de Pago</h2>
+            <div v-if="selectedSurgeryIds.length === 0" class="text-center py-10 text-slate-500">
               <p>Seleccioná una o más cirugías de la lista para comenzar.</p>
             </div>
             <div v-else>
-              <div class="mb-4 space-y-3">
+              <div class="space-y-3 mb-4">
                 <div v-for="inst in paymentSummary.instrumentadores" :key="inst.dni" class="text-sm">
                   <div class="flex justify-between font-medium">
                     <span>{{ inst.nombre }}</span>
@@ -122,34 +126,32 @@
                 </div>
               </div>
 
-              <div class="pt-4 mb-6 border-t border-slate-200 dark:border-slate-700">
-                <div class="flex items-center justify-between text-lg font-bold">
+              <div class="border-t border-slate-200 dark:border-slate-700 pt-4 mb-6">
+                <div class="flex justify-between items-center text-lg font-bold">
                   <span>TOTAL GENERAL</span>
                   <span>{{ formatCurrency(paymentSummary.monto_total_general) }}</span>
                 </div>
               </div>
 
               <div class="space-y-4">
-                <textarea v-model="paymentNotes" placeholder="Notas adicionales (opcional)..." class="h-20 form-input"></textarea>
-                <!-- --- INICIO DE LA MODIFICACIÓN --- -->
+                <textarea v-model="paymentNotes" placeholder="Notas adicionales (opcional)..." class="form-input h-20"></textarea>
                 <FileUpload 
                   v-if="showFileUploader"
                   ref="fileUploader" 
                   :owner-id="Date.now().toString()" 
                 />
-                <!-- --- FIN DE LA MODIFICACIÓN --- -->
               </div>
 
               <div class="mt-6">
                 <button 
                   @click="registrarPago" 
                   :disabled="isSubmitting || !fileUploader?.hasFiles"
-                  class="w-full btn-primary"
+                  class="btn-primary w-full"
                 >
                   <span v-if="isSubmitting">Registrando Pago...</span>
                   <span v-else>Registrar Orden de Pago</span>
                 </button>
-                <p v-if="!fileUploader?.hasFiles" class="mt-2 text-xs text-center text-red-500">Se requiere un comprobante para continuar.</p>
+                <p v-if="!fileUploader?.hasFiles" class="text-xs text-center mt-2 text-red-500">Se requiere un comprobante para continuar.</p>
               </div>
             </div>
           </div>
@@ -160,15 +162,13 @@
     <PostPagoModal 
       :show="isPostPagoModalVisible" 
       :payment-data="lastPaymentData"
-      @close="isPostPagoModalVisible = false"
+      @close="handleClosePostPagoModal"
     />
   </div>
 </template>
 
 <script setup>
-// --- INICIO DE LA MODIFICACIÓN ---
 import { ref, computed, onMounted, reactive, nextTick } from 'vue';
-// --- FIN DE LA MODIFICACIÓN ---
 import { supabase } from '../../services/supabase';
 import { useToast } from 'vue-toastification';
 import FileUpload from '../../components/uploader/FileUpload.vue';
@@ -185,9 +185,8 @@ const fileUploader = ref(null);
 const isSubmitting = ref(false);
 const isPostPagoModalVisible = ref(false);
 const lastPaymentData = ref(null);
-// --- INICIO DE LA MODIFICACIÓN ---
 const showFileUploader = ref(true);
-// --- FIN DE LA MODIFICACIÓN ---
+const justPaidSurgeryIds = ref(new Set());
 
 const filters = reactive({
   searchTerm: '',
@@ -271,14 +270,19 @@ const filteredSurgeries = computed(() => {
 });
 
 const areAllSelected = computed(() => 
-  filteredSurgeries.value.length > 0 && selectedSurgeryIds.value.length === filteredSurgeries.value.length
+  filteredSurgeries.value.length > 0 && 
+  filteredSurgeries.value.every(s => selectedSurgeryIds.value.includes(s.id) || justPaidSurgeryIds.value.has(s.id))
 );
 
 const toggleSelectAll = (event) => {
   if (event.target.checked) {
-    selectedSurgeryIds.value = filteredSurgeries.value.map(s => s.id);
+    const idsToSelect = filteredSurgeries.value
+      .filter(s => !justPaidSurgeryIds.value.has(s.id))
+      .map(s => s.id);
+    selectedSurgeryIds.value = [...new Set([...selectedSurgeryIds.value, ...idsToSelect])];
   } else {
-    selectedSurgeryIds.value = [];
+    const idsToUnselect = filteredSurgeries.value.map(s => s.id);
+    selectedSurgeryIds.value = selectedSurgeryIds.value.filter(id => !idsToUnselect.includes(id));
   }
 };
 
@@ -322,9 +326,17 @@ const registrarPago = async () => {
 
   try {
     const uploadResult = await fileUploader.value.startUpload('comprobantes-pago');
-    if (!uploadResult || uploadResult.length === 0) throw new Error("La subida del archivo falló.");
     
-    const objectKey = uploadResult[0].objectKey;
+    // --- INICIO DE LA MODIFICACIÓN ---
+    // Se corrige la extracción de la clave del objeto para que coincida con la estructura real.
+    if (!uploadResult || !Array.isArray(uploadResult) || uploadResult.length === 0 || !uploadResult[0].object_key) {
+      console.error('[DEBUG] Estructura de uploadResult inesperada:', uploadResult);
+      throw new Error("La subida del archivo no devolvió la clave del objeto esperada.");
+    }
+    
+    const objectKey = uploadResult[0].object_key; // Se usa object_key con guion bajo.
+    // --- FIN DE LA MODIFICACIÓN ---
+
     toast.update(toastId, { content: "Comprobante subido. Registrando orden de pago..." });
 
     const ordenDePago = {
@@ -336,7 +348,7 @@ const registrarPago = async () => {
         .map(inst => ({
           instrumentador_dni: inst.dni,
           monto_total_instrumentador: inst.monto_total,
-          cirugias: inst.cirugias.map(c => c.id)
+          cirugias: inst.cirugias.map(c => ({ id: c.id, monto: c.monto }))
       }))
     };
 
@@ -351,28 +363,29 @@ const registrarPago = async () => {
     
     lastPaymentData.value = JSON.parse(JSON.stringify(paymentSummary.value));
     
+    selectedSurgeryIds.value.forEach(id => justPaidSurgeryIds.value.add(id));
+
     selectedSurgeryIds.value = [];
     paymentNotes.value = '';
     
-    // --- INICIO DE LA MODIFICACIÓN ---
-    // Se implementa el reseteo del componente FileUpload.
     showFileUploader.value = false;
     await nextTick();
     showFileUploader.value = true;
-    // --- FIN DE LA MODIFICACIÓN ---
-    
-    clearFilters();
     
     isPostPagoModalVisible.value = true;
     
-    fetchData();
-
   } catch (err) {
     console.error("Error al registrar el pago:", err);
     toast.update(toastId, { content: `Error: ${err.message}`, options: { type: 'error', timeout: 5000 } });
   } finally {
     isSubmitting.value = false;
   }
+};
+
+const handleClosePostPagoModal = () => {
+  isPostPagoModalVisible.value = false;
+  justPaidSurgeryIds.value.clear();
+  fetchData();
 };
 
 const formatCurrency = (value) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value || 0);

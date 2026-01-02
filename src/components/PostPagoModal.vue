@@ -1,7 +1,11 @@
-<!-- src/components/admin/PostPagoModal.vue -->
+<!-- src/components/PostPagoModal.vue -->
 <template>
   <Transition name="fade">
-    <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" @click.self="$emit('close')">
+    <!-- --- INICIO DE LA MODIFICACIÓN --- -->
+    <!-- Se elimina el evento @click.self="$emit('close')" del div principal. -->
+    <!-- Esto evita que el modal se cierre al hacer clic en el fondo (overlay). -->
+    <div v-if="show" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <!-- --- FIN DE LA MODIFICACIÓN --- -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
         <header class="p-4 border-b border-slate-200 dark:border-slate-700">
           <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">✅ Pago Registrado con Éxito</h2>
@@ -9,21 +13,23 @@
         </header>
 
         <main class="p-6 space-y-6 overflow-y-auto">
+          <!-- Sección de Resumen General -->
           <div>
-            <label class="block mb-1 text-sm font-medium text-slate-600 dark:text-slate-300">Resumen General del Lote</label>
+            <label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Resumen General del Lote</label>
             <div class="relative">
               <textarea readonly :value="generalSummaryText" class="textarea-display"></textarea>
               <button @click="copyToClipboard(generalSummaryText, 'Resumen general')" class="copy-button">Copiar</button>
             </div>
           </div>
 
+          <!-- Sección de Mensajes de WhatsApp -->
           <div>
-            <h3 class="mb-2 text-lg font-semibold">Mensajes para Instrumentadores</h3>
+            <h3 class="text-lg font-semibold mb-2">Mensajes para Instrumentadores</h3>
             <div class="space-y-4">
               <div v-for="inst in paymentData.instrumentadores" :key="inst.dni">
-                <label class="block mb-1 text-sm font-medium text-slate-600 dark:text-slate-300">Para: {{ inst.nombre }}</label>
+                <label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Para: {{ inst.nombre }}</label>
                 <div class="relative">
-                  <textarea readonly :value="generateWhatsAppMessage(inst)" class="h-32 textarea-display"></textarea>
+                  <textarea readonly :value="generateWhatsAppMessage(inst)" class="textarea-display h-32"></textarea>
                   <button @click="copyToClipboard(generateWhatsAppMessage(inst), `Mensaje para ${inst.nombre}`)" class="copy-button">Copiar</button>
                 </div>
               </div>
@@ -31,7 +37,7 @@
           </div>
         </main>
 
-        <footer class="p-4 text-right border-t bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700">
+        <footer class="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 text-right">
           <button @click="$emit('close')" class="btn-secondary">Cerrar</button>
         </footer>
       </div>
@@ -76,7 +82,7 @@ const generateWhatsAppMessage = (instrumentador) => {
   }
   const accessLink = `${window.location.origin}/resumen/${instrumentador.activity_token}`;
   
-  return `¡Hola ${instrumentador.nombre.split(' ')[0]}! Te informo que se ha procesado tu pago por un total de ${formatCurrency(instrumentador.monto_total)} correspondiente a ${instrumentador.cirugias_count} cirugía(s).\n\nPuedes ver el detalle y el comprobante accediendo a tu resumen de actividad con tu DNI en el siguiente enlace:\n${accessLink}\n\n¡Muchas gracias!`;
+  return `¡Hola ${instrumentador.nombre.split(' ')[0]}! Te informo que se ha procesado tu pago por un total de ${formatCurrency(instrumentador.monto_total)} correspondiente a ${instrumentador.cirugias_count} cirugía(s).\n\nPodes ver el detalle y el comprobante accediendo a tu resumen de actividad con tu DNI en el siguiente enlace:\n${accessLink}\n\n¡Muchas gracias!`;
 };
 
 const copyToClipboard = async (text, label) => {
