@@ -1,6 +1,7 @@
 // src/router/index.js
 
 import { createRouter, createWebHistory } from 'vue-router';
+// Importa el cliente de Supabase para la lógica de autenticación.
 import { supabase } from '../services/supabase';
 
 // --- Vistas y Layouts ---
@@ -19,14 +20,12 @@ import ActivitySummaryView from '../views/ActivitySummaryView.vue';
 import LogisticaControl from '../views/logistica/LogisticaControl.vue';
 import InstrumentadorUpload from '../views/instrumentadores/InstrumentadorUpload.vue';
 import ConsumoView from '../views/logistica/ConsumoView.vue';
-// --- INICIO DE LA MODIFICACIÓN ---
-// Se elimina la importación de GestionPagosView, ya que su funcionalidad se ha consolidado.
-// import GestionPagosView from '../views/admin/GestionPagosView.vue';
 import PagosDashboardView from '../views/admin/PagosDashboardView.vue';
-// Se elimina la importación de CrearOrdenDePagoView, ya que es obsoleta.
-// import CrearOrdenDePagoView from '../views/admin/CrearOrdenDePagoView.vue';
-// --- FIN DE LA MODIFICACIÓN ---
 import HistorialPagosView from '../views/admin/HistorialPagosView.vue';
+// --- INICIO DE LA MODIFICACIÓN ---
+// Se importa la nueva vista de herramienta.
+import CorregirComprobanteView from '../views/admin/CorregirComprobanteView.vue';
+// --- FIN DE LA MODIFICACIÓN ---
 
 
 // --- Definición de Rutas ---
@@ -79,35 +78,28 @@ const routes = [
       { path: 'instrumentador-upload', name: 'InstrumentadorUpload', component: InstrumentadorUpload },
       { path: 'control-consumo', name: 'ControlConsumo', component: ConsumoView },
       
-      // --- INICIO DE LA MODIFICACIÓN ---
-      // Se elimina la ruta 'gestion-pagos' para simplificar.
-      // { 
-      //   path: 'gestion-pagos', 
-      //   name: 'GestionPagos', 
-      //   component: GestionPagosView,
-      //   meta: { requiredRole: 'admin' }
-      // },
       {
-        // La ruta '/pagos' ahora apunta a nuestra nueva estación de trabajo.
         path: 'pagos',
         name: 'PagosDashboard',
         component: PagosDashboardView,
         meta: { requiredRole: 'admin' }
       },
-      // Se elimina la ruta 'crear-orden-pago' por ser obsoleta.
-      // {
-      //   path: 'crear-orden-pago',
-      //   name: 'CrearOrdenDePago',
-      //   component: CrearOrdenDePagoView,
-      //   meta: { requiredRole: 'admin' }
-      // },
-      // --- FIN DE LA MODIFICACIÓN ---
       {
         path: 'historial-pagos',
         name: 'HistorialPagos',
         component: HistorialPagosView,
         meta: { requiredRole: 'admin' }
+      },
+      // --- INICIO DE LA MODIFICACIÓN ---
+      // Se añade la nueva ruta para la herramienta de corrección.
+      // Se protege para que solo los administradores puedan acceder.
+      {
+        path: 'corregir-comprobante',
+        name: 'CorregirComprobante',
+        component: CorregirComprobanteView,
+        meta: { requiredRole: 'admin' }
       }
+      // --- FIN DE LA MODIFICACIÓN ---
     ]
   }
 ];

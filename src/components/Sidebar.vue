@@ -5,9 +5,9 @@
 
   <aside ref="sideRef" :class="['w-64 bg-white dark:bg-slate-800 shadow-md flex flex-col fixed inset-y-0 left-0 z-30 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0', isOpen ? 'translate-x-0' : '-translate-x-full']" role="navigation" aria-label="Menú principal">
     <!-- Cabecera del Sidebar -->
-    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+    <div class="p-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
       <div class="flex items-center gap-2">
-        <span class="inline-flex items-center justify-center w-8 h-8 font-bold text-white bg-blue-500 rounded-xl">IQ</span>
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500 text-white font-bold">IQ</span>
         <h1 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Gestión IQ</h1>
       </div>
     </div>
@@ -23,13 +23,13 @@
         </button>
         <!-- Enlace con submenú -->
         <div v-else>
-          <button @click="toggleSubmenu(item.label)" class="w-full nav-link group" :aria-current="isActive(item) ? 'page' : undefined">
+          <button @click="toggleSubmenu(item.label)" class="nav-link group w-full" :aria-current="isActive(item) ? 'page' : undefined">
             <component :is="item.icon" class="w-5 h-5 shrink-0"/>
             <span class="truncate">{{ item.label }}</span>
-            <svg class="w-4 h-4 ml-auto transition-transform duration-200 transform" :class="isSubmenuOpen(item.label) ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            <svg class="ml-auto h-4 w-4 transform transition-transform duration-200" :class="isSubmenuOpen(item.label) ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
           </button>
           <div v-show="isSubmenuOpen(item.label)" class="pl-4 mt-1 space-y-1">
-            <button v-for="child in item.children" :key="child.label" @click="handleNavigation(child)" class="w-full nav-link group" :aria-current="isActive(child) ? 'page' : undefined">
+            <button v-for="child in item.children" :key="child.label" @click="handleNavigation(child)" class="nav-link group w-full" :aria-current="isActive(child) ? 'page' : undefined">
               <component :is="child.icon" class="w-5 h-5 shrink-0"/>
               <span class="truncate">{{ child.label }}</span>
             </button>
@@ -40,7 +40,7 @@
 
     <!-- Pie del Sidebar -->
     <div class="p-4 mt-auto border-t border-gray-200 dark:border-slate-700">
-      <button @click="handleLogout" class="flex items-center justify-center w-full gap-2 p-2 text-red-600 rounded-lg dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+      <button @click="handleLogout" class="w-full flex items-center justify-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg">
         <component :is="LogoutIcon" class="w-5 h-5"/>
         <span>{{ loggingOut ? 'Cerrando…' : 'Cerrar sesión' }}</span>
       </button>
@@ -93,7 +93,6 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 
 // --- DEFINICIÓN DE ICONOS ---
 const PanelIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M4 6h16M4 12h16m-7 6h7' }) ]) };
-const RankingIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z' }), h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z' }) ]) };
 const StatsIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M16 8v8m-4-5v5m-4-2v2M5 20h14a2 2 0 002-2V6a2 2 0 002-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' }) ]) };
 const InstrumentadoresIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.653-.124-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.653.124-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' }) ]) };
 const IncidenciasIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-width':'2', d:'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' }) ]) };
@@ -103,15 +102,13 @@ const LogoutIcon = { render: () => h('svg', { class: 'w-5 h-5', fill:'none', str
 const UploadIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' }) ]) };
 const TruckIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z' }), h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 17H6V6h11v5l-4 4H9' }) ]) };
 const DollarIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8v1m0 6v1m6-1a9 9 0 11-18 0 9 9 0 0118 0z' }) ]) };
-// --- INICIO DE LA MODIFICACIÓN ---
 const BoltIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 10V3L4 14h7v7l9-11h-7z' }) ]) };
 const HistoryIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' }) ]) };
-// --- FIN DE LA MODIFICACIÓN ---
+const WrenchIcon = { render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }), h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z' }) ]) };
 
 // --- ESTRUCTURA DE NAVEGACIÓN ---
 const items = computed(() => ([
   { label: 'Panel de Cirugías', to: { name: 'Admin' }, icon: PanelIcon, roles: ['admin','coord','user'] },
-  { label: 'Ranking IQ', to: { name: 'Ranking' }, icon: RankingIcon, roles: ['admin','coord'] },
   { label: 'Estadísticas', to: { name: 'Estadisticas' }, badge: 'Nuevo', icon: StatsIcon, roles: ['admin','coord'] },
   { label: 'Instrumentadores', to: { name: 'Instrumentadores' }, icon: InstrumentadoresIcon, roles: ['admin','coord','user'] },
   { label: 'Incidencias', to: { name: 'Incidencias' }, icon: IncidenciasIcon, roles: ['admin','coord'] },
@@ -142,19 +139,19 @@ const items = computed(() => ([
     roles: ['admin'],
     requiresAuth: true,
     children: [
-      // --- INICIO DE LA MODIFICACIÓN ---
-      // Se reemplazan los enlaces antiguos por un único punto de entrada a la nueva estación de pagos.
       { 
         label: 'Estación de Pagos', 
         to: { name: 'PagosDashboard' },
         icon: BoltIcon
       },
-      // Se mantiene el enlace al historial de pagos.
+      // --- INICIO DE LA MODIFICACIÓN ---
+      // Se renombra "Historial de Pagos" para reflejar su nuevo propósito.
       { 
-        label: 'Historial de Pagos', 
+        label: 'Auditoría y Correcciones', 
         to: { name: 'HistorialPagos' },
         icon: HistoryIcon
       },
+      // Se elimina el enlace directo a "Corregir Comprobante".
       // --- FIN DE LA MODIFICACIÓN ---
     ]
   },
