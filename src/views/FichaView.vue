@@ -1,5 +1,26 @@
-<!-- src/views/FichaView.vue (Completo y Corregido) -->
+<!-- src/views/FichaView.vue (CON BANNER DE ANUNCIO) -->
 <template>
+  <!-- ===== INICIO DEL NUEVO CÓDIGO: BANNER DE ANUNCIO ===== -->
+  <!-- Este banner es fijo, por lo que flotará sobre todo el contenido. -->
+  <Transition name="slide-down">
+    <div v-if="showAnnouncementBanner" class="fixed top-0 left-0 right-0 z-50 bg-sky-600 text-white shadow-lg">
+      <div class="max-w-4xl mx-auto px-4 py-3">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <InformationCircleIcon class="w-6 h-6 shrink-0" />
+            <p class="text-sm sm:text-base font-medium">
+              ¡Recordá que ahora podés subir las imágenes directamente desde la web!
+            </p>
+          </div>
+          <button @click="dismissBanner" class="p-1 rounded-full hover:bg-white/20">
+            <XMarkIcon class="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  </Transition>
+  <!-- ===== FIN DEL NUEVO CÓDIGO ===== -->
+
   <div class="min-h-screen w-full bg-slate-900 flex flex-col items-center justify-center p-4 sm:p-8">
     <div class="w-full max-w-4xl">
       <Transition name="fade" mode="out-in">
@@ -39,6 +60,7 @@ import { supabase } from '../services/supabase.js';
 import IdentificationWizard from '../components/IdentificationWizard.vue';
 import FichaForm from '../components/FichaForm.vue';
 import SubmissionSuccess from '../components/SubmissionSuccess.vue';
+import { InformationCircleIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({ 
   token: { type: String, default: null },
@@ -50,9 +72,17 @@ const reporte = ref(null);
 const error = ref(null);
 const instrumentador = ref(null);
 const activityToken = ref(null);
-
-// ***** CORRECCIÓN 1: Definimos la variable de estado que faltaba *****
 const submittedReportId = ref(null);
+const showAnnouncementBanner = ref(false);
+
+const dismissBanner = () => {
+  showAnnouncementBanner.value = false;
+  try {
+    localStorage.setItem('announcementDismissed', 'true');
+  } catch (e) {
+    console.warn("No se pudo guardar la preferencia del banner en localStorage:", e);
+  }
+};
 
 const fetchReporte = async () => {
   viewState.value = 'loading';
@@ -100,8 +130,6 @@ const fetchReporte = async () => {
     reporte.value = reporteData;
     
     if (reporteData.estado === 'Enviado') {
-      // ***** CORRECCIÓN 2: Si la ficha ya fue enviada, también guardamos su ID *****
-      // Esto asegura que si el usuario refresca la página, la carga de evidencia siga funcionando.
       submittedReportId.value = reporteData.id;
 
       if (reporteData.instrumentador_dni) {
@@ -136,11 +164,8 @@ const handleIdentificationComplete = (identifiedInstrumentador) => {
   viewState.value = 'form_display';
 };
 
-// ***** CORRECCIÓN 3: La función ahora acepta el 'reporteId' del evento *****
 const handleSuccess = async (reporteId) => {
-  // Guardamos el ID que nos llega del FichaForm.
   submittedReportId.value = reporteId;
-
   sessionStorage.removeItem('iq_instrumentador');
   
   try {
@@ -169,11 +194,31 @@ const requestUpdate = () => {
 
 onMounted(() => {
   sessionStorage.removeItem('iq_instrumentador');
+  
+  try {
+    if (localStorage.getItem('announcementDismissed') !== 'true') {
+      showAnnouncementBanner.value = true;
+    }
+  } catch (e) {
+    console.warn("No se pudo leer la preferencia del banner desde localStorage:", e);
+    showAnnouncementBanner.value = true;
+  }
+
   fetchReporte();
 });
 </script>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.4s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.fade-enter-active, .fade-leave-active { 
+  transition: opacity 0.4s ease; 
+}
+.fade-enter-from, .fade-leave-to { 
+  opacity: 0; 
+}
+.slide-down-enter-active, .slide-down-leave-active {
+  transition: transform 0.4s ease-out;
+}
+.slide-down-enter-from, .slide-down-leave-to {
+  transform: translateY(-100%);
+}
 </style>

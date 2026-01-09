@@ -1,20 +1,12 @@
-<!-- src/components/report-details/ReportEventsAndPdfs.vue -->
+<!-- src/components/report-details/ReportEventsAndPdfs.vue (VERSIÓN FINAL CON API NATIVA) -->
 <template>
   <div class="events-pdfs-container">
-    <!-- Botones de Acción -->
     <div class="actions-header">
       <button @click="handleGeneratePdf" class="btn btn-primary">Generar PDF</button>
     </div>
-
-    <!-- Estado de Carga -->
     <div v-if="isLoading" class="loading-state">Cargando historial...</div>
-    <!-- Estado de Error -->
     <div v-else-if="errorMsg" class="error-state">{{ errorMsg }}</div>
-
-    <!-- Layout de dos columnas -->
     <div v-else class="columns-wrapper">
-      
-      <!-- Columna Izquierda: Eventos (Timeline) -->
       <div class="column">
         <h3 class="column-title">Eventos del Reporte</h3>
         <ul v-if="timelineEvents.length > 0" class="timeline">
@@ -29,8 +21,6 @@
         </ul>
         <div v-else class="empty-state">No hay eventos para mostrar.</div>
       </div>
-
-      <!-- Columna Derecha: Historial de PDFs Generados -->
       <div class="column">
         <h3 class="column-title">Historial de PDFs Generados</h3>
         <table v-if="pdfHistory.length > 0" class="pdf-table">
@@ -60,26 +50,36 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { supabase } from '../../services/supabase';
+// Ya no necesitamos 'date-fns' ni 'date-fns-tz' para esta tarea.
 
 const props = defineProps({
   reportId: { type: [String, Number], required: true },
 });
 
-// --- ESTADO INTERNO ---
 const isLoading = ref(true);
 const errorMsg = ref(null);
 const reporteData = ref(null);
 const logisticaData = ref(null);
 const pdfHistory = ref([]);
 
-// --- MÉTODOS ---
+// ** LA SOLUCIÓN DEFINITIVA Y NATIVA **
+// Se crea un formateador una sola vez para ser reutilizado, lo cual es eficiente.
+const dateTimeFormatter = new Intl.DateTimeFormat('es-AR', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZone: 'America/Argentina/Buenos_Aires',
+});
 
 const formatDateTime = (dateString) => {
   if (!dateString) return 'N/A';
-  return new Date(dateString).toLocaleString('es-ES', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-  }) + ' hs';
+  // Simplemente usamos el formateador pre-configurado.
+  return dateTimeFormatter.format(new Date(dateString)) + ' hs';
 };
+
 
 const timelineEvents = computed(() => {
   const events = [];
@@ -112,27 +112,20 @@ const fetchData = async () => {
   try {
     const [reporteRes, logisticaRes, pdfRes] = await Promise.all([
       supabase.from('reportes').select('created_at, fecha_envio, instrumentador_completado').eq('id', props.reportId).single(),
-      
-      // Consulta corregida para evitar el error 406
       supabase.from('logistica_controles').select('created_at, estado').eq('cirugia_id', props.reportId).limit(1).single(),
-      
       supabase.from('pdf_generation_log').select('id, version, generated_at').eq('reporte_id', props.reportId).order('version', { ascending: false })
     ]);
-
     if (reporteRes.error) throw new Error(`Error al cargar el reporte: ${reporteRes.error.message}`);
     if (pdfRes.error) throw new Error(`Error al cargar historial de PDF: ${pdfRes.error.message}`);
-    // Ignoramos el error "0 rows" para logística, pero capturamos otros.
     if (logisticaRes.error && logisticaRes.error.code !== 'PGRST116') {
       throw new Error(`Error al cargar datos de logística: ${logisticaRes.error.message}`);
     }
-
     reporteData.value = reporteRes.data;
     logisticaData.value = logisticaRes.data;
     pdfHistory.value = pdfRes.data || [];
-
   } catch (error) {
-    console.error("Error en fetchData:", error);
-    errorMsg.value = "No se pudo cargar la información del historial.";
+    console.error('Error en fetchData:', error);
+    errorMsg.value = 'No se pudo cargar la información del historial.';
   } finally {
     isLoading.value = false;
   }
@@ -140,17 +133,13 @@ const fetchData = async () => {
 
 onMounted(fetchData);
 
-// --- FUNCIONES "GANCHO" (PLACEHOLDERS) ---
-
 const handleGeneratePdf = () => {
-  // TODO: Conectar con la lógica de generación de PDF del ReportDrawer.
   console.log(`Generar PDF para el reporte ID: ${props.reportId}`);
   alert('Funcionalidad "Generar PDF" a implementar.');
 };
 
 const handleDownloadPdf = (pdfId) => {
-  // TODO: Implementar lógica para descargar una versión específica del PDF.
-  console.log(`Descargar PDF ID: ${pdfId} del reporte ID: ${props.reportId}`);
+  console.log(`Descargar PDF ID ${pdfId} del reporte ID ${props.reportId}`);
   alert(`Funcionalidad "Descargar PDF ${pdfId}" a implementar.`);
 };
 </script>
