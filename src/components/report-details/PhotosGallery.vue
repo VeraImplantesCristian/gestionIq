@@ -3,8 +3,7 @@
   <div class="photos-gallery-container">
     <!-- 
       Encabezado de la Galería.
-      - El título se genera dinámicamente.
-      - El botón de subida solo aparece si 'showUploader' es true.
+      - No se realizan cambios en esta sección.
     -->
     <div v-if="!compact" class="gallery-header">
       <div class="header-info">
@@ -14,10 +13,10 @@
       <PhotoUploader v-if="showUploader" @photos-uploaded="handlePhotosUploaded" />
     </div>
 
-    <!-- Mensaje de carga mientras se obtienen los datos -->
+    <!-- Mensaje de carga (sin cambios) -->
     <div v-if="isLoading" class="loading-state">Cargando fotos...</div>
     
-    <!-- Grilla de fotos -->
+    <!-- Grilla de fotos (sin cambios) -->
     <div v-else-if="photos.length > 0" class="gallery-grid">
       <PhotoCard
         v-for="(photo, index) in photos"
@@ -28,18 +27,25 @@
       />
     </div>
     
-    <!-- Mensaje si no hay fotos, con opción de subir si está permitido -->
+    <!-- Mensaje si no hay fotos (sin cambios) -->
     <div v-else class="empty-gallery">
       <p>No hay fotos en esta galería todavía.</p>
       <PhotoUploader v-if="showUploader" @photos-uploaded="handlePhotosUploaded" class="mt-4" />
     </div>
 
-    <!-- Visor de Fotos (Lightbox) -->
-    <PhotoLightbox
-      v-if="isLightboxOpen"
-      :photos="photos"
-      :start-index="activePhotoIndex"
-      @close="isLightboxOpen = false"
+    <!-- 
+      NUEVO Visor de Fotos Interactivo (Lightbox).
+      - Reemplaza al antiguo componente <PhotoLightbox>.
+      - :visible: Controla si el visor está abierto o cerrado, vinculado a nuestra variable 'isLightboxOpen'.
+      - :imgs: Es la lista de URLs de las imágenes a mostrar. Usamos una propiedad computada para esto.
+      - :index: Es el índice de la imagen que se debe mostrar al abrir, vinculado a 'activePhotoIndex'.
+      - @hide: Es el evento que se dispara cuando el usuario cierra el visor. Llama a nuestra función 'closeLightbox'.
+    -->
+    <VueEasyLightbox
+      :visible="isLightboxOpen"
+      :imgs="lightboxImages"
+      :index="activePhotoIndex"
+      @hide="closeLightbox"
     />
   </div>
 </template>
@@ -48,8 +54,14 @@
 import { ref, computed, onMounted } from 'vue';
 import { supabase } from '../../services/supabase';
 import PhotoCard from './PhotoCard.vue';
-import PhotoLightbox from './PhotoLightbox.vue';
+// --- CAMBIO: Se elimina la importación del visor antiguo ---
+// import PhotoLightbox from './PhotoLightbox.vue'; 
 import PhotoUploader from './PhotoUploader.vue';
+
+// --- CAMBIO: Se importa la nueva biblioteca y sus estilos CSS necesarios ---
+import VueEasyLightbox from 'vue-easy-lightbox';
+import 'vue-easy-lightbox/dist/external-css/vue-easy-lightbox.css';
+
 
 const props = defineProps({
   // ID del reporte principal, siempre requerido.
@@ -66,31 +78,29 @@ const props = defineProps({
   compact: { type: Boolean, default: false },
 });
 
-// --- ESTADO INTERNO ---
+// --- ESTADO INTERNO (sin cambios en las variables, se reutilizan) ---
 const isLoading = ref(true);
 const photos = ref([]); 
 const isLightboxOpen = ref(false);
 const activePhotoIndex = ref(0);
 const R2_PUBLIC_URL = import.meta.env.VITE_R2_PUBLIC_URL;
 
-// --- LÓGICA DE CARGA DE DATOS ---
+// --- CAMBIO: Propiedad computada para adaptar los datos al nuevo visor ---
+// La biblioteca 'vue-easy-lightbox' necesita un array simple de strings (las URLs de las imágenes).
+// Esta propiedad computada transforma nuestro array de objetos 'photos' a ese formato de forma reactiva.
+const lightboxImages = computed(() => photos.value.map(p => p.url));
 
-/**
- * Busca las fotos en Supabase aplicando los filtros correctos.
- */
+// --- LÓGICA DE CARGA DE DATOS (sin cambios) ---
 const fetchPhotos = async () => {
   isLoading.value = true;
   try {
-    // Empezamos la consulta a la tabla de evidencias.
     let query = supabase
       .from('reporte_evidencias')
       .select('id, object_key, file_name, created_at, content_type')
-      .eq('reporte_id', props.reportId) // Filtro 1: por el ID del reporte.
-      .eq('area', props.area)           // Filtro 2: por el área ('instrumentadores' o 'logistica').
-      .like('content_type', 'image/%'); // Solo imágenes.
+      .eq('reporte_id', props.reportId)
+      .eq('area', props.area)
+      .like('content_type', 'image/%');
 
-    // Si se proporciona un logisticaControlId, añadimos un filtro extra.
-    // Esto es para la vista de "Logística Interna", para mostrar solo las fotos de un control.
     if (props.logisticaControlId) {
       query = query.eq('logistica_control_id', props.logisticaControlId);
     }
@@ -98,7 +108,6 @@ const fetchPhotos = async () => {
     const { data, error } = await query;
     if (error) throw error;
 
-    // Mapeamos los datos al formato que necesitan los componentes hijos.
     photos.value = data.map(file => ({
       id: file.id,
       url: `${R2_PUBLIC_URL}/${file.object_key}`, 
@@ -112,14 +121,22 @@ const fetchPhotos = async () => {
   }
 };
 
-// Ejecutamos la carga de datos cuando el componente se monta.
 onMounted(fetchPhotos);
 
 // --- MÉTODOS Y FUNCIONES "GANCHO" ---
 
+// --- CAMBIO: Se corrige y adapta la lógica para abrir el nuevo visor ---
 const openLightbox = (index) => {
-  isLightboxOpen.value = index;
+  // 1. Establece el índice de la foto en la que se hizo clic.
+  activePhotoIndex.value = index;
+  // 2. Pone la variable de visibilidad en 'true' para mostrar el visor.
   isLightboxOpen.value = true;
+};
+
+// --- CAMBIO: Nueva función para manejar el cierre del visor ---
+// Esta función es llamada por el evento @hide del componente VueEasyLightbox.
+const closeLightbox = () => {
+  isLightboxOpen.value = false;
 };
 
 const handlePhotosUploaded = (newPhotos) => {
@@ -139,6 +156,7 @@ const handleDeletePhoto = (photoId) => {
 </script>
 
 <style scoped>
+/* Los estilos existentes del componente no necesitan cambios */
 .photos-gallery-container { width: 100%; }
 .gallery-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .header-info { display: flex; align-items: baseline; gap: 0.75rem; }

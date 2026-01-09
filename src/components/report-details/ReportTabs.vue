@@ -37,7 +37,16 @@ import LogisticaTimeline from './LogisticaTimeline.vue';
 
 const props = defineProps({
   reportId: { type: [String, Number], required: true },
-  ownerId: { type: [String, Number], required: true },
+  
+  // --- CAMBIO: Se ajusta la definición de la prop 'ownerId' ---
+  ownerId: {
+    // Se permite que el tipo sea String, Number u Object (para aceptar null).
+    type: [String, Number, Object],
+    // Ya no es requerida, ya que un reporte puede no tener owner.
+    required: false,
+    // Se establece 'null' como valor por defecto si no se proporciona.
+    default: null
+  },
 });
 
 // --- ESTRUCTURA DE LAS PESTAÑAS ---
@@ -48,23 +57,20 @@ const tabs = [
     name: 'Fotos Instrumentadores', 
     component: markRaw(PhotosGallery), 
     props: { 
-      // Le decimos a la galería que busque en el área 'instrumentadores'
       area: 'instrumentadores',
-      // Le pasamos un título personalizado
       title: 'Evidencia del Instrumentador',
-      // Le decimos que no muestre el botón de subida
       showUploader: false 
     } 
   },
   { 
     name: 'Logística Interna', 
     component: markRaw(LogisticaTimeline), 
-    props: {} // Este componente carga sus propios datos y no necesita props especiales
+    props: {}
   },
   { 
     name: 'Eventos & PDFs', 
     component: markRaw(ReportEventsAndPdfs), 
-    props: {} // Este componente también carga sus propios datos
+    props: {}
   },
 ];
 

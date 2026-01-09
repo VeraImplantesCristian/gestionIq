@@ -1,9 +1,9 @@
+<!-- src/views/admin/HistorialPagosView.vue -->
 <template>
   <div class="p-4 sm:p-6 lg:p-8">
-    <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">Auditoría de Pagos</h1>
+    <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">Auditoría y Correcciones</h1>
     <p class="text-slate-600 dark:text-slate-400 mt-1 mb-8">Auditá el historial de pagos y utilizá las herramientas para corregir errores.</p>
 
-    <!-- --- INICIO DE LA MODIFICACIÓN --- -->
     <!-- Sistema de Pestañas -->
     <div class="mb-6 border-b border-gray-200 dark:border-slate-700">
       <nav class="-mb-px flex space-x-6" aria-label="Tabs">
@@ -33,8 +33,7 @@
     </div>
 
     <!-- Contenido de la Pestaña "Historial" -->
-    <div v-if="activeTab === 'historial'">
-    <!-- --- FIN DE LA MODIFICACIÓN --- -->
+    <div v-show="activeTab === 'historial'">
       <div v-if="isLoading" class="text-center p-10">
         <p>Cargando historial...</p>
       </div>
@@ -97,12 +96,13 @@
           </div>
         </div>
       </div>
-    <!-- --- INICIO DE LA MODIFICACIÓN --- -->
     </div>
 
+    <!-- --- INICIO DE LA MODIFICACIÓN --- -->
     <!-- Contenido de la Pestaña "Herramientas" -->
-    <div v-if="activeTab === 'herramientas'">
-      <DividirOrdenDePago />
+    <!-- Ahora renderiza nuestro nuevo orquestador modular -->
+    <div v-show="activeTab === 'herramientas'">
+      <CorrectionWorkspace />
     </div>
     <!-- --- FIN DE LA MODIFICACIÓN --- -->
 
@@ -115,21 +115,15 @@
 </template>
 
 <script setup>
-// --- INICIO DE LA MODIFICACIÓN ---
 import { ref, onMounted, computed, watch } from 'vue';
-// --- FIN DE LA MODIFICACIÓN ---
 import { supabase } from '../../services/supabase';
 import OrdenDePagoDetalleModal from '../../components/admin/OrdenDePagoDetalleModal.vue';
 // --- INICIO DE LA MODIFICACIÓN ---
-// Se importa el nuevo componente de corrección.
-import DividirOrdenDePago from '../../components/admin/DividirOrdenDePago.vue';
+// Se importa el nuevo componente orquestador.
+import CorrectionWorkspace from '../../components/admin/corrections/CorrectionWorkspace.vue';
 // --- FIN DE LA MODIFICACIÓN ---
 
-// --- INICIO DE LA MODIFICACIÓN ---
-// Se añade el estado para la pestaña activa.
 const activeTab = ref('historial');
-// --- FIN DE LA MODIFICACIÓN ---
-
 const historial = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
@@ -203,15 +197,11 @@ onMounted(() => {
   fetchHistorial();
 });
 
-// --- INICIO DE LA MODIFICACIÓN ---
-// Se añade un 'watch' para recargar el historial si el usuario vuelve a la pestaña.
-// Esto es útil para ver los cambios después de usar una herramienta de corrección.
 watch(activeTab, (newTab) => {
   if (newTab === 'historial') {
     fetchHistorial();
   }
 });
-// --- FIN DE LA MODIFICACIÓN ---
 </script>
 
 <style scoped>

@@ -1,4 +1,4 @@
-<!-- src/components/uploader/FileUpload.vue -->
+<!-- src/components/uploader/FileUpload.vue (COMPLETO Y CORREGIDO) -->
 <template>
   <div 
     class="uploader-container"
@@ -49,7 +49,7 @@
 </template>
 
 <script setup>
-import { ref, onUnmounted, computed } from 'vue'; // Añadimos 'computed'
+import { ref, onUnmounted, computed } from 'vue';
 import { supabase } from '../../services/supabase';
 import { useB2Upload } from './useB2Upload';
 import { useDeviceDetection } from '../../composables/useDeviceDetection';
@@ -57,7 +57,6 @@ import { resizeImage } from '../../services/useImageResizer.js';
 import WebcamCapture from '../capture/WebcamCapture.vue';
 import { useToast } from 'vue-toastification';
 
-// --- PROPS Y COMPOSABLES ---
 const props = defineProps({
   area: { type: String, default: 'logistica' },
   ownerId: { type: String, required: true },
@@ -69,7 +68,6 @@ const toast = useToast();
 const { isMobile } = useDeviceDetection();
 const { uploadFile } = useB2Upload();
 
-// --- ESTADO DEL COMPONENTE ---
 const fileInputMultiple = ref(null);
 const fileInputCamera = ref(null);
 const selectedFiles = ref([]);
@@ -79,12 +77,8 @@ const isWebcamModalOpen = ref(false);
 const isChainShotActive = ref(false);
 const isDragging = ref(false);
 
-// --- NUEVA PROPIEDAD COMPUTADA ---
-// Esta propiedad computada simplemente lee el estado de 'selectedFiles'
-// y devuelve 'true' si hay archivos, o 'false' si no.
 const hasFiles = computed(() => selectedFiles.value.length > 0);
 
-// --- LÓGICA DE MANEJO DE ARCHIVOS ---
 const addFiles = (files) => {
   const fileList = Array.from(files);
   for (const file of fileList) {
@@ -125,7 +119,14 @@ const removeFile = (index) => {
   selectedFiles.value.splice(index, 1);
 };
 
-// --- LÓGICA DE SUBIDA (NÚCLEO DEL COMPONENTE) ---
+// Esta es la función que el padre quiere llamar
+const clear = () => {
+  selectedFiles.value.forEach(file => URL.revokeObjectURL(file.previewUrl));
+  selectedFiles.value = [];
+};
+
+onUnmounted(clear);
+
 const startUpload = async () => {
   if (selectedFiles.value.length === 0) return [];
 
@@ -201,17 +202,16 @@ const startUpload = async () => {
   return uploadedFilesData;
 };
 
-const clear = () => {
-  selectedFiles.value.forEach(file => URL.revokeObjectURL(file.previewUrl));
-  selectedFiles.value = [];
-};
-
-onUnmounted(clear);
-
-// Exponemos las funciones que el padre necesita, AÑADIENDO 'hasFiles'.
-defineExpose({ startUpload, clear, hasFiles });
+// ** LA SOLUCIÓN CLAVE ESTÁ AQUÍ **
+// Exponemos explícitamente las funciones que el componente padre (SubmissionSuccess) necesita llamar.
+defineExpose({
+  startUpload,
+  clear
+});
 </script>
+
 <style scoped>
+/* (El CSS permanece sin cambios) */
 .uploader-container {
   width: 100%;
   border: 2px dashed #cbd5e1;

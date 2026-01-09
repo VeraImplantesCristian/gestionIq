@@ -1,4 +1,4 @@
-<!-- src/components/report-details/PhotoCard.vue (Corregido) -->
+<!-- src/components/report-details/PhotoCard.vue -->
 <template>
   <!-- 
     El contenedor principal de la tarjeta.
@@ -37,105 +37,45 @@
       <p class="photo-caption" :title="photo.caption">{{ photo.caption }}</p>
       <time class="photo-date">{{ photo.date }}</time>
     </div>
-  </div> <!-- ***** ESTA ES LA ETIQUETA QUE FALTABA ***** -->
+  </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
 
+// Define las propiedades que el componente espera recibir.
 const props = defineProps({
+  // 'photo' es un objeto que contiene los datos de la imagen (url, caption, etc.).
   photo: { type: Object, required: true }
 });
 
+// Define los eventos que el componente puede emitir hacia su padre.
 const emit = defineEmits(['view', 'delete']);
 
+// Estado local para controlar la visibilidad de las acciones.
 const showActions = ref(false);
 
+// Función para copiar la URL de la imagen al portapapeles.
 const handleCopyLink = () => {
   navigator.clipboard.writeText(props.photo.url);
-  console.log(`Enlace copiado: ${props.photo.url}`);
+  // Feedback para el usuario.
   alert('Enlace de la imagen copiado al portapapeles.');
 };
 </script>
 
 <style scoped>
-.photo-card {
-  border-radius: 8px;
-  overflow: hidden;
-  background-color: white;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  transition: box-shadow 0.2s ease-in-out;
-}
-.photo-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-.thumbnail-wrapper {
-  position: relative;
-  width: 100%;
-  padding-top: 100%; 
-}
-.thumbnail-image {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.actions-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-}
-.action-button {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.8);
-  color: #334155;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-}
-.action-button:hover {
-  background-color: white;
-}
-.action-button.danger {
-  color: #dc2626;
-}
-.action-button svg {
-  width: 20px;
-  height: 20px;
-}
-.info-footer {
-  padding: 0.75rem;
-}
-.photo-caption {
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: #1e293b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.photo-date {
-  font-size: 0.75rem;
-  color: #64748b;
-}
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
+.photo-card { border-radius: 8px; overflow: hidden; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: box-shadow 0.2s ease-in-out; }
+.photo-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.thumbnail-wrapper { position: relative; width: 100%; padding-top: 100%; /* Aspect ratio 1:1 */ }
+.thumbnail-image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+.actions-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; gap: 0.75rem; }
+.action-button { width: 36px; height: 36px; border-radius: 50%; background-color: rgba(255, 255, 255, 0.8); color: #334155; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color 0.2s; }
+.action-button:hover { background-color: white; }
+.action-button.danger { color: #dc2626; }
+.action-button svg { width: 20px; height: 20px; }
+.info-footer { padding: 0.75rem; }
+.photo-caption { font-weight: 500; font-size: 0.875rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.photo-date { font-size: 0.75rem; color: #64748b; }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

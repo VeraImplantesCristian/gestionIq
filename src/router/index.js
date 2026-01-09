@@ -23,8 +23,8 @@ import ConsumoView from '../views/logistica/ConsumoView.vue';
 import PagosDashboardView from '../views/admin/PagosDashboardView.vue';
 import HistorialPagosView from '../views/admin/HistorialPagosView.vue';
 // --- INICIO DE LA MODIFICACIÓN ---
-// Se importa la nueva vista de herramienta.
-import CorregirComprobanteView from '../views/admin/CorregirComprobanteView.vue';
+// Se importa la nueva vista de configuración.
+import ConfigView from '../views/ConfigView.vue';
 // --- FIN DE LA MODIFICACIÓN ---
 
 
@@ -91,12 +91,12 @@ const routes = [
         meta: { requiredRole: 'admin' }
       },
       // --- INICIO DE LA MODIFICACIÓN ---
-      // Se añade la nueva ruta para la herramienta de corrección.
+      // Se añade la nueva ruta para la vista de configuración.
       // Se protege para que solo los administradores puedan acceder.
       {
-        path: 'corregir-comprobante',
-        name: 'CorregirComprobante',
-        component: CorregirComprobanteView,
+        path: 'configuracion',
+        name: 'Configuracion',
+        component: ConfigView,
         meta: { requiredRole: 'admin' }
       }
       // --- FIN DE LA MODIFICACIÓN ---
@@ -122,8 +122,10 @@ router.beforeEach(async (to, from, next) => {
   }
   
   if (requiredRole) {
-    if (user?.app_metadata?.role !== requiredRole) {
-      console.warn(`Acceso denegado a '${to.path}'. Rol requerido: '${requiredRole}', Rol del usuario: '${user?.app_metadata?.role}'.`);
+    // Aseguramos que el usuario y sus metadatos existan antes de comprobar el rol.
+    if (!user || user.app_metadata?.role !== requiredRole) {
+      console.warn(`Acceso denegado a '${to.path}'. Rol requerido: '${requiredRole}', Rol del usuario: '${user?.app_metadata?.role || 'ninguno'}'.`);
+      // Redirige a la página principal de admin si el rol no es el correcto.
       return next({ name: 'Admin' });
     }
   }

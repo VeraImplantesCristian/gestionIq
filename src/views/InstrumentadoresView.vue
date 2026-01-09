@@ -1,56 +1,39 @@
 <!-- src/views/InstrumentadoresView.vue -->
 <template>
   <div class="p-4 sm:p-6 lg:p-8">
-    <!-- --- INICIO DE LA MODIFICACIÓN --- -->
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">{{ headerTitle }}</h1>
+      <div v-if="activeTab === 'lista'">
+        <button @click="openImportModal" class="btn-secondary mr-2">Importar XLS</button>
+        <button @click="openNewModal" class="btn-primary">Nuevo Instrumentador</button>
+      </div>
+    </div>
+
     <!-- Sistema de Pestañas -->
-    <div class="mb-6 border-b border-gray-200 dark:border-slate-700">
+    <div class="border-b border-gray-200 dark:border-slate-700">
       <nav class="-mb-px flex space-x-6" aria-label="Tabs">
-        <button
-          @click="activeTab = 'lista'"
-          :class="[
-            'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm',
-            activeTab === 'lista'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-slate-400 dark:hover:text-slate-200'
-          ]"
-        >
+        <button @click="activeTab = 'lista'" :class="getTabClass('lista')">
           Lista de Instrumentadores
         </button>
-        <button
-          @click="activeTab = 'ranking'"
-          :class="[
-            'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm',
-            activeTab === 'ranking'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-slate-400 dark:hover:text-slate-200'
-          ]"
-        >
-          Ranking Mensual
+        <button @click="activeTab = 'ranking'" :class="getTabClass('ranking')">
+          Ranking de Rendimiento
         </button>
       </nav>
     </div>
 
     <!-- Contenido de la Pestaña "Lista" -->
-    <div v-if="activeTab === 'lista'">
-    <!-- --- FIN DE LA MODIFICACIÓN --- -->
+    <div v-show="activeTab === 'lista'" class="mt-6">
       <InstrumentadoresFilters 
         v-model="filters" 
         :export-disabled="loading || processedInstrumentadores.length === 0"
         @export="handleExport"
       />
-
-      <!-- Estado de Carga -->
       <div v-if="loading" class="space-y-4">
         <SkeletonLoader v-for="n in 5" :key="`skel-${n}`" />
       </div>
-
-      <!-- Estado de Error -->
       <div v-else-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-        <strong class="font-bold">Error:</strong>
-        <span class="block sm:inline">{{ error }}</span>
+        <strong>Error:</strong> <span class="block sm:inline">{{ error }}</span>
       </div>
-
-      <!-- Contenido Principal: Tabla y Paginación -->
       <div v-else class="bg-white dark:bg-slate-800 shadow-md rounded-lg overflow-hidden">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
@@ -97,14 +80,57 @@
           @page-changed="goToPage" 
         />
       </div>
-    <!-- --- INICIO DE LA MODIFICACIÓN --- -->
     </div>
 
-    <!-- Contenido de la Pestaña "Ranking" -->
-    <div v-if="activeTab === 'ranking'">
-      <InstrumentadoresRanking />
+    <!-- Contenido de la Pestaña "Ranking de Rendimiento" -->
+    <div v-show="activeTab === 'ranking'" class="mt-6">
+      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+          <input type="date" v-model="startDate" class="form-input"/>
+          <input type="date" v-model="endDate" class="form-input"/>
+          <button @click="fetchRankingData" :disabled="isRankingLoading" class="btn-primary h-full">
+            Aplicar Filtros
+          </button>
+        </div>
+      </div>
+      <div v-if="isRankingLoading" class="text-center p-10">
+        <p>Calculando KPIs de rendimiento...</p>
+      </div>
+      <div v-else-if="rankingError" class="bg-red-100 text-red-700 p-4 rounded-lg text-center">
+        <p>Error al calcular el ranking: {{ rankingError }}</p>
+      </div>
+      <div v-else-if="rankingData.length === 0" class="text-center p-10 bg-white dark:bg-slate-800 rounded-xl shadow">
+        <p class="text-slate-500">No hay datos de cirugías enviadas en el período seleccionado.</p>
+      </div>
+      <div v-else class="space-y-3">
+        <div class="grid grid-cols-12 gap-4 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-slate-400">
+          <div class="col-span-1">Pos.</div>
+          <div class="col-span-3">Instrumentador</div>
+          <div class="col-span-2 text-center">Puntaje IQ</div>
+          <div class="col-span-6">KPIs de Rendimiento</div>
+        </div>
+        <div v-for="(instrumentador, index) in rankingData" :key="instrumentador.instrumentador_dni" class="ranking-row">
+          <div class="col-span-1 flex items-center font-bold text-lg text-slate-600 dark:text-slate-300">{{ index + 1 }}</div>
+          <div class="col-span-3">
+            <p class="font-semibold text-slate-800 dark:text-slate-100">{{ instrumentador.nombre_completo }}</p>
+            <p class="text-sm text-slate-500">{{ instrumentador.instrumentador_dni }}</p>
+          </div>
+          <div class="col-span-2 flex items-center justify-center">
+            <div class="score-badge" :class="getScoreClass(instrumentador.puntaje_iq_promedio)">
+              {{ instrumentador.puntaje_iq_promedio || 'N/A' }}
+            </div>
+          </div>
+          <div class="col-span-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            <div class="kpi-item"><UserGroupIcon class="kpi-icon"/><span>Cirugías:</span><strong>{{ instrumentador.total_cirugias }}</strong></div>
+            <div class="kpi-item"><CameraIcon class="kpi-icon"/><span>Fotos:</span><strong>{{ instrumentador.total_fotos_subidas }}</strong></div>
+            <div class="kpi-item"><ClockIcon class="kpi-icon text-blue-500"/><span>Cierre (hs):</span><strong>{{ instrumentador.tiempo_cierre_promedio_horas }} hs</strong></div>
+            <div class="kpi-item"><ClipboardDocumentListIcon class="kpi-icon text-green-500"/><span>Consumo (chars):</span><strong>{{ instrumentador.consumo_promedio_chars }}</strong></div>
+            <div class="kpi-item"><ChatBubbleLeftRightIcon class="kpi-icon text-orange-500"/><span>Obs. (chars):</span><strong>{{ instrumentador.observaciones_promedio_chars }}</strong></div>
+            <div class="kpi-item"><ExclamationTriangleIcon class="kpi-icon text-red-500"/><span>Informe Faltante:</span><strong>{{ instrumentador.tasa_informe_faltante === null ? 'N/A' : instrumentador.tasa_informe_faltante + '%' }}</strong></div>
+          </div>
+        </div>
+      </div>
     </div>
-    <!-- --- FIN DE LA MODIFICACIÓN --- -->
   </div>
 
   <!-- Modales -->
@@ -115,9 +141,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, inject, h, markRaw, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { supabase } from '../services/supabase.js';
-import { useToast } from 'vue-toastification';
+import { useToasts } from '../composables/useToasts.js';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
@@ -128,44 +154,12 @@ import NewInstrumentadorModal from '../components/NewInstrumentadorModal.vue';
 import ImportInstrumentadoresModal from '../components/ImportInstrumentadoresModal.vue';
 import PaginationControls from '../components/PaginationControls.vue';
 import InstrumentadoresFilters from '../components/InstrumentadoresFilters.vue';
-import { KeyIcon, ChartBarIcon } from '@heroicons/vue/24/outline';
-// --- INICIO DE LA MODIFICACIÓN ---
-// Se importa el nuevo componente de Ranking
-import InstrumentadoresRanking from '../components/InstrumentadoresRanking.vue';
-// --- FIN DE LA MODIFICACIÓN ---
+import { KeyIcon, ChartBarIcon, UserGroupIcon, CameraIcon, ClockIcon, ChatBubbleLeftRightIcon, ClipboardDocumentListIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 
-const headerConfig = inject('header-config');
-const isNewModalOpen = ref(false);
-const isImportModalOpen = ref(false);
-const openNewModal = () => { isNewModalOpen.value = true; };
-const openImportModal = () => { isImportModalOpen.value = true; };
-
-// --- INICIO DE LA MODIFICACIÓN ---
-// Se añade una variable reactiva para controlar la pestaña activa
+const { showErrorToast } = useToasts();
 const activeTab = ref('lista');
-// --- FIN DE LA MODIFICACIÓN ---
 
-onMounted(() => {
-  // La configuración inicial del header no cambia
-  headerConfig.value = {
-    title: 'Gestión de Instrumentadores',
-    buttons: [
-      { text: 'Importar XLS', action: openImportModal, class: 'bg-emerald-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-emerald-700 flex items-center space-x-2', icon: markRaw({ render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4' }) ]) }) },
-      { text: 'Nuevo Instrumentador', action: openNewModal, class: 'bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-blue-700 flex items-center space-x-2', icon: markRaw({ render: () => h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [ h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 6v6m0 0v6m0-6h6m-6 0H6' }) ]) }) }
-    ]
-  };
-  fetchInstrumentadores();
-});
-onUnmounted(() => { headerConfig.value = { title: '', buttons: [] }; });
-
-// --- INICIO DE LA MODIFICACIÓN ---
-// Se utiliza un 'watch' para actualizar el título del header cuando cambia la pestaña
-watch(activeTab, (newTab) => {
-  headerConfig.value.title = newTab === 'lista' ? 'Gestión de Instrumentadores' : 'Ranking Mensual IQ';
-});
-// --- FIN DE LA MODIFICACIÓN ---
-
-const toast = useToast();
+// --- Lógica para la Pestaña "Lista" ---
 const instrumentadores = ref([]);
 const loading = ref(true);
 const error = ref(null);
@@ -174,7 +168,6 @@ const isStatsModalOpen = ref(false);
 const selectedInstrumentador = ref(null);
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
-
 const filters = ref({
   searchTerm: '',
   sortBy: 'nombre_completo',
@@ -182,6 +175,69 @@ const filters = ref({
   minIvo: '',
   maxIvo: '',
 });
+const isNewModalOpen = ref(false);
+const isImportModalOpen = ref(false);
+const openNewModal = () => { isNewModalOpen.value = true; };
+const openImportModal = () => { isImportModalOpen.value = true; };
+
+// --- Lógica para la Pestaña "Ranking" ---
+const rankingData = ref([]);
+const isRankingLoading = ref(false);
+const rankingError = ref(null);
+const setDefaultDates = () => {
+  const endDateObj = new Date();
+  const startDateObj = new Date();
+  startDateObj.setDate(endDateObj.getDate() - 90);
+  return { start: startDateObj.toISOString().split('T')[0], end: endDateObj.toISOString().split('T')[0] };
+};
+const startDate = ref(setDefaultDates().start);
+const endDate = ref(setDefaultDates().end);
+
+// --- Lógica Común y Métodos ---
+const headerTitle = computed(() => activeTab.value === 'lista' ? 'Gestión de Instrumentadores' : 'Ranking de Rendimiento');
+
+onMounted(() => {
+  fetchInstrumentadores();
+});
+
+watch(activeTab, (newTab) => {
+  if (newTab === 'ranking' && rankingData.value.length === 0) {
+    fetchRankingData();
+  }
+});
+
+const fetchInstrumentadores = async () => {
+  loading.value = true;
+  error.value = null;
+  try {
+    const { data, error: fetchError } = await supabase.rpc('get_instrumentadores_con_stats');
+    if (fetchError) throw fetchError;
+    instrumentadores.value = data;
+  } catch (err) {
+    error.value = err.message;
+    showErrorToast(err, "Error al cargar los instrumentadores.");
+  } finally {
+    loading.value = false;
+  }
+};
+
+const fetchRankingData = async () => {
+  isRankingLoading.value = true;
+  rankingError.value = null;
+  try {
+    const { data, error: rpcError } = await supabase.rpc('get_instrumentador_ranking_kpis', {
+      p_start_date: startDate.value,
+      p_end_date: endDate.value
+    });
+    if (rpcError) throw rpcError;
+    rankingData.value = data || [];
+  } catch (err) {
+    rankingError.value = err.message;
+    showErrorToast(err, "Error al calcular el ranking.");
+  } finally {
+    isRankingLoading.value = false;
+  }
+};
 
 const capitalizeName = (name) => {
   if (!name) return '';
@@ -232,21 +288,6 @@ const goToPage = (page) => {
   currentPage.value = page;
 };
 
-const fetchInstrumentadores = async () => {
-  loading.value = true;
-  error.value = null;
-  try {
-    const { data, error: fetchError } = await supabase.rpc('get_instrumentadores_con_stats');
-    if (fetchError) throw fetchError;
-    instrumentadores.value = data;
-  } catch (err) {
-    error.value = err.message;
-    toast.error("Error al cargar los instrumentadores: " + err.message);
-  } finally {
-    loading.value = false;
-  }
-};
-
 const getIvoColor = (score) => {
   if (score >= 8.0) {
     return 'text-green-500 dark:text-green-400';
@@ -272,11 +313,9 @@ const openStatsModal = (instrumentador) => {
 
 const handleUpdate = () => {
   fetchInstrumentadores();
-  toast.success('Lista de instrumentadores actualizada.');
 };
 
 function handleExport() {
-  toast.info("Generando reporte de Excel...", { timeout: 2000 });
   const dataToExport = processedInstrumentadores.value.map(iq => ({
     'Nombre Completo': capitalizeName(iq.nombre_completo),
     'DNI': iq.dni,
@@ -295,10 +334,8 @@ function handleExport() {
 
 const copyPermanentLink = async (instrumentador) => {
   let token = instrumentador.activity_token;
-  const loadingToastId = toast.info("Procesando enlace...", { timeout: false });
   try {
     if (!token) {
-      toast.update(loadingToastId, { content: "Generando nuevo enlace permanente..." });
       const { data: newToken, error: rpcError } = await supabase.rpc('generar_activity_token', { p_instrumentador_dni: instrumentador.dni });
       if (rpcError) throw rpcError;
       if (!newToken) throw new Error('La base de datos no devolvió el nuevo token.');
@@ -310,19 +347,41 @@ const copyPermanentLink = async (instrumentador) => {
     }
     const url = `${window.location.origin}/resumen/${token}`;
     await navigator.clipboard.writeText(url);
-    toast.update(loadingToastId, { content: "¡Enlace de acceso permanente copiado!", options: { type: 'success', timeout: 3000 } });
+    // Aquí podrías usar showSuccessToast si lo importas desde useToasts
   } catch (err) {
     console.error('Error al copiar el enlace permanente:', err);
-    toast.update(loadingToastId, { content: `No se pudo procesar el enlace: ${err.message}`, options: { type: 'error', timeout: 5000 } });
+    showErrorToast(err, 'No se pudo procesar el enlace.');
   }
+};
+
+const getTabClass = (tabName) => [
+  'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm',
+  activeTab.value === tabName
+    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-slate-400 dark:hover:text-slate-200'
+];
+
+const getScoreClass = (score) => {
+  if (score >= 4.5) return 'score-high';
+  if (score >= 3.5) return 'score-medium';
+  if (score > 0) return 'score-low';
+  return 'score-none';
 };
 </script>
 
 <style scoped>
-.table-header {
-  @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-slate-400 select-none;
-}
-.action-button {
-  @apply p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md transition-colors;
-}
+.table-header { @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-slate-400 select-none; }
+.action-button { @apply p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md transition-colors; }
+.form-input { @apply px-4 py-2 border border-slate-300 rounded-md w-full; @apply dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200; }
+.btn-primary { @apply bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors; @apply hover:bg-blue-700 disabled:bg-slate-400; }
+.btn-secondary { @apply bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-2 px-4 rounded-lg; @apply hover:bg-slate-50 dark:hover:bg-slate-600; }
+.ranking-row { @apply bg-white dark:bg-slate-800 shadow-sm rounded-lg p-4 grid grid-cols-12 gap-4 items-center; }
+.score-badge { @apply text-2xl font-bold w-16 h-16 flex items-center justify-center rounded-full; }
+.score-high { @apply bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300; }
+.score-medium { @apply bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300; }
+.score-low { @apply bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300; }
+.score-none { @apply bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400; }
+.kpi-item { @apply flex items-center gap-2 text-slate-600 dark:text-slate-300; }
+.kpi-item strong { @apply font-semibold text-slate-800 dark:text-slate-100; }
+.kpi-icon { @apply w-4 h-4 text-slate-400; }
 </style>

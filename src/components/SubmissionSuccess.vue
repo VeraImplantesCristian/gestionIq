@@ -1,4 +1,4 @@
-<!-- src/components/SubmissionSuccess.vue -->
+<!-- src/components/SubmissionSuccess.vue (CON LOGS DE DIAGNÓSTICO) -->
 <template>
   <div class="w-full max-w-lg mx-auto text-center">
     <div class="bg-white p-8 sm:p-12 rounded-2xl shadow-lg dark:bg-slate-800">
@@ -60,7 +60,6 @@
               </div>
               
               <div>
-                <!-- El componente FileUpload ahora está siempre visible para una experiencia más ágil -->
                 <FileUpload
                   ref="fileUploaderRef"
                   area="instrumentadores"
@@ -68,8 +67,6 @@
                   :accepted-file-types="'image/*'"
                   :enable-camera="true"
                 />
-
-                <!-- Nuevo botón para finalizar la subida, que orquesta toda la acción -->
                 <button 
                   @click="finalizeUploads" 
                   :disabled="isSaving"
@@ -78,22 +75,16 @@
                   <CloudArrowUpIcon class="w-5 h-5" />
                   <span>{{ isSaving ? 'Guardando Evidencia...' : 'Finalizar y Guardar Evidencia' }}</span>
                 </button>
-
-                <!-- Mensaje de éxito temporal -->
                 <div v-if="uploadSuccessMessage" class="success-feedback">
                   <p>{{ uploadSuccessMessage }}</p>
                 </div>
-
-                <!-- El visor muestra las evidencias existentes y las recién subidas -->
                 <EvidenceViewer v-if="uploadedFiles.length > 0" :files="uploadedFiles" class="mt-4" />
               </div>
-
               <div class="flex items-center text-center">
                 <div class="flex-grow border-t border-slate-300 dark:border-slate-600"></div>
                 <span class="flex-shrink mx-4 text-xs text-slate-500 dark:text-slate-400">o si preferís</span>
                 <div class="flex-grow border-t border-slate-300 dark:border-slate-600"></div>
               </div>
-
               <a
                 :href="whatsappUrl"
                 target="_blank"
@@ -105,7 +96,6 @@
               </a>
             </div>
           </div>
-
         </div>
       </div>
     </div>
@@ -127,12 +117,11 @@ const props = defineProps({
 });
 
 const toast = useToast();
-const fileUploaderRef = ref(null); // Referencia al componente FileUpload
-const uploadedFiles = ref([]); // Almacena las evidencias existentes y las nuevas
+const fileUploaderRef = ref(null);
+const uploadedFiles = ref([]);
 const isSaving = ref(false);
 const uploadSuccessMessage = ref('');
 
-// Carga las evidencias que ya existan para este reporte cuando el componente se monta
 const fetchExistingEvidences = async () => {
   if (!props.reporteId) return;
   try {
@@ -140,8 +129,7 @@ const fetchExistingEvidences = async () => {
       .from('reporte_evidencias')
       .select('*')
       .eq('reporte_id', props.reporteId)
-      .eq('area', 'instrumentadores'); // Filtro CRÍTICO para no mostrar las de logística
-
+      .eq('area', 'instrumentadores');
     if (error) throw error;
     uploadedFiles.value = data || [];
   } catch (error) {
@@ -151,42 +139,54 @@ const fetchExistingEvidences = async () => {
 
 onMounted(fetchExistingEvidences);
 
-// Orquesta la subida y el guardado en la base de datos
+// ** CAMBIO: FUNCIÓN MODIFICADA CON LOGS DE DIAGNÓSTICO **
 const finalizeUploads = async () => {
-  if (!fileUploaderRef.value) return;
+  console.log('[SubmissionSuccess] Iniciando finalizeUploads...');
+  if (!fileUploaderRef.value) {
+    console.error('[SubmissionSuccess] La referencia al componente FileUpload no existe.');
+    return;
+  }
+  
+  // Log del ID de reporte que recibe el componente
+  console.log(`[SubmissionSuccess] ID de Reporte recibido como prop: ${props.reporteId} (Tipo: ${typeof props.reporteId})`);
 
   isSaving.value = true;
   uploadSuccessMessage.value = '';
 
   try {
-    // 1. Ordena a FileUpload que suba los archivos a R2
     const newEvidences = await fileUploaderRef.value.startUpload();
+    console.log(`[SubmissionSuccess] FileUpload ha subido ${newEvidences.length} archivo(s).`);
 
-    // Si no se seleccionaron nuevos archivos, no hacemos nada.
     if (newEvidences.length === 0) {
       toast.info("No hay nuevos archivos para guardar.");
       return;
     }
 
-    // 2. Prepara los registros para la base de datos
     const recordsToInsert = newEvidences.map(ev => ({
       reporte_id: props.reporteId,
       object_key: ev.object_key,
       file_name: ev.file_name,
       content_type: ev.content_type,
       size_bytes: ev.size_bytes,
-      area: 'instrumentadores' // Asignamos el área correcta
+      area: 'instrumentadores'
     }));
 
-    // 3. Inserta todos los registros en un solo lote
+    // Log del payload EXACTO que se enviará a la base de datos. ¡ESTE ES EL MÁS IMPORTANTE!
+    console.log('[SubmissionSuccess] Payload que se intentará insertar en la DB:');
+    console.table(recordsToInsert);
+
+    console.log('[SubmissionSuccess] Ejecutando supabase.insert...');
     const { data: insertedData, error } = await supabase
       .from('reporte_evidencias')
       .insert(recordsToInsert)
       .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[SubmissionSuccess] ¡ERROR DE SUPABASE DETECTADO!', error);
+      throw error;
+    }
 
-    // 4. Actualiza la UI con los nuevos archivos y limpia el uploader
+    console.log('[SubmissionSuccess] Inserción en la DB completada con éxito.');
     uploadedFiles.value.push(...insertedData);
     fileUploaderRef.value.clear();
     
@@ -197,6 +197,7 @@ const finalizeUploads = async () => {
     toast.error(`Error al guardar la evidencia: ${error.message}`);
   } finally {
     isSaving.value = false;
+    console.log('[SubmissionSuccess] Proceso finalizeUploads terminado.');
   }
 };
 
@@ -211,14 +212,5 @@ const whatsappUrl = computed(() => {
 .checkmark-circle { stroke-dasharray: 166; stroke-dashoffset: 166; stroke-width: 3; stroke-miterlimit: 10; stroke: #22c55e; animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards; }
 .checkmark-check { transform-origin: 50% 50%; stroke-dasharray: 48; stroke-dashoffset: 48; stroke-width: 4; stroke: #22c55e; stroke-linecap: round; stroke-linejoin: round; animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards; }
 @keyframes stroke { 100% { stroke-dashoffset: 0; } }
-
-.success-feedback {
-  margin-top: 1rem;
-  padding: 0.75rem 1rem;
-  background-color: #d1fae5;
-  border-left: 4px solid #10b981;
-  color: #065f46;
-  border-radius: 4px;
-  font-size: 0.875rem;
-}
+.success-feedback { margin-top: 1rem; padding: 0.75rem 1rem; background-color: #d1fae5; border-left: 4px solid #10b981; color: #065f46; border-radius: 4px; font-size: 0.875rem; }
 </style>

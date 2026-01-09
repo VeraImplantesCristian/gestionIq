@@ -6,8 +6,12 @@
         <!-- Overlay -->
         <div @click="cancelEdit" class="fixed inset-0 bg-black bg-opacity-70 transition-opacity"></div>
         
-        <!-- Contenido del Modal -->
-        <div class="relative z-50 w-full max-w-3xl bg-white h-[90vh] flex flex-col rounded-lg shadow-xl dark:bg-slate-800">
+        <!-- 
+          Contenido del Modal 
+          --- CAMBIO: Se aumenta el ancho máximo del modal. ---
+          - Se cambió 'max-w-3xl' por 'max-w-4xl' para darle más espacio horizontal.
+        -->
+        <div class="relative z-50 w-full max-w-4xl bg-white h-[90vh] flex flex-col rounded-lg shadow-xl dark:bg-slate-800">
           
           <!-- Cabecera -->
           <div class="p-4 border-b flex justify-between items-center flex-shrink-0 dark:border-slate-700">
@@ -176,7 +180,8 @@ import { ref, watch, defineAsyncComponent } from 'vue';
 import { supabase } from '../services/supabase.js';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { useToast } from 'vue-toastification';
+// --- CAMBIO: Se importa nuestro composable de toasts en lugar del hook directo ---
+import { useToasts } from '../composables/useToasts';
 
 import ReportTabs from './report-details/ReportTabs.vue';
 import RegistrarIntervencionModal from './admin/RegistrarIntervencionModal.vue';
@@ -188,7 +193,8 @@ const ReportPDF = defineAsyncComponent(() => import('./ReportPDF.vue'));
 const props = defineProps({ show: Boolean, reporte: Object });
 const emit = defineEmits(['close', 'updated']);
 
-const toast = useToast();
+// --- CAMBIO: Se instancia nuestro composable ---
+const { showSuccessToast, showErrorToast } = useToasts();
 const activeTab = ref('details');
 const isEditing = ref(false);
 const isSaving = ref(false);
@@ -207,7 +213,7 @@ const checkExistingIntervention = async (reporteId) => {
       .from('intervenciones_clave')
       .select('id')
       .eq('reporte_id', reporteId)
-      .maybeSingle(); // Usamos maybeSingle para evitar errores si no hay filas.
+      .maybeSingle();
     
     hasIntervention.value = !!data && !error;
   } catch (err) {
@@ -236,6 +242,9 @@ watch(() => props.reporte, (newReporte) => {
 const handleRegisterIntervention = async () => {
   if (!formData.value) return;
   
+  // --- CAMBIO: Se usa el composable para notificaciones ---
+  // (Aunque esta parte ya usaba un sistema de update, lo dejamos por consistencia)
+  const toast = useToast(); // Se mantiene para el update, que es un caso especial
   const loadingToastId = toast.info("Registrando intervención...", { timeout: false });
   try {
     const { data, error } = await supabase.rpc('registrar_intervencion_clave', {
@@ -280,18 +289,19 @@ const saveChanges = async () => {
   isSaving.value = true;
   try {
     const updateData = { ...formData.value };
-    // Parche para eliminar columnas que no existen en la tabla 'reportes'
     delete updateData.total_count;
     delete updateData.short_links;
-    delete updateData.instrumentador_nombre; // Esta columna viene del JOIN, no debe estar en el UPDATE
+    delete updateData.instrumentador_nombre;
     const { id, created_at, token, url_firma, instrumentadores, ...finalUpdateData } = updateData;
     const { error } = await supabase.from('reportes').update(finalUpdateData).eq('id', id);
     if (error) throw error;
-    toast.success('Reporte actualizado con éxito.');
+    // --- CAMBIO: Se usa el composable para notificaciones ---
+    showSuccessToast('Reporte actualizado con éxito.');
     emit('updated');
     close();
   } catch (err) {
-    toast.error('Error al actualizar el reporte: ' + err.message);
+    // --- CAMBIO: Se usa el composable para notificaciones de error ---
+    showErrorToast(err, 'Error al actualizar el reporte.');
   } finally {
     isSaving.value = false;
   }
@@ -309,7 +319,8 @@ const generatePDF = async () => {
     });
     if (rpcError) throw rpcError;
     currentPdfVersion.value = version;
-    toast.success(`Generando PDF Versión ${version}...`);
+    // --- CAMBIO: Se usa el composable para notificaciones ---
+    showSuccessToast(`Generando PDF Versión ${version}...`);
     await new Promise(resolve => setTimeout(resolve, 50));
     const pdfElement = pdfComponentRef.value?.pdfTemplateRef;
     if (!pdfElement) throw new Error("Elemento de PDF no encontrado.");
@@ -324,7 +335,8 @@ const generatePDF = async () => {
     pdf.save(`Reporte-${props.reporte.id_cirugia || props.reporte.id}-V${version}.pdf`);
   } catch (error) {
     console.error("Error al generar el PDF:", error);
-    toast.error(`Hubo un error al generar el PDF: ${error.message}`);
+    // --- CAMBIO: Se usa el composable para notificaciones de error ---
+    showErrorToast(error, 'Hubo un error al generar el PDF.');
   } finally {
     isGeneratingPdf.value = false;
   }
@@ -345,7 +357,8 @@ const downloadSignature = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     })
-    .catch(() => toast.error('No se pudo descargar la firma.'));
+    // --- CAMBIO: Se usa el composable para notificaciones de error ---
+    .catch(() => showErrorToast('No se pudo descargar la firma.'));
 };
 
 const formatDateTime = (dateString) => {
