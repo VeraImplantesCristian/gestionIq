@@ -66,9 +66,16 @@ const form = reactive({
   fecha_pago: '',
 });
 
+// --- INICIO DE LA CORRECCIÓN ---
+// La validación del formulario ahora también comprueba si hay un archivo en el componente hijo.
 const isFormValid = computed(() => {
-  return form.monto > 0 && form.fecha_pago;
+  // La condición 'fileUploaderRef.value?.hasFiles' es segura:
+  // - 'fileUploaderRef.value' comprueba que el componente hijo ya se haya montado.
+  // - El '?' (optional chaining) previene un error si 'value' es nulo al principio.
+  // - 'hasFiles' es la propiedad que lee del hijo, que ahora está correctamente expuesta.
+  return form.monto > 0 && form.fecha_pago && fileUploaderRef.value?.hasFiles;
 });
+// --- FIN DE LA CORRECCIÓN ---
 
 onMounted(() => {
   form.fecha_pago = new Date().toISOString().split('T')[0];
@@ -79,10 +86,17 @@ const close = () => {
 };
 
 const handleSave = async () => {
+  // --- INICIO DE LA CORRECCIÓN ---
+  // Se actualiza el mensaje de advertencia para ser más específico si falta el archivo.
   if (!isFormValid.value) {
-    toast.warning("Por favor, completá el monto y la fecha.");
+    let message = "Por favor, complete el monto y la fecha.";
+    if (!fileUploaderRef.value?.hasFiles) {
+      message = "Se requiere un comprobante para continuar.";
+    }
+    toast.warning(message);
     return;
   }
+  // --- FIN DE LA CORRECCIÓN ---
 
   isSaving.value = true;
   try {

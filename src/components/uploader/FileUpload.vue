@@ -1,4 +1,4 @@
-<!-- src/components/uploader/FileUpload.vue (COMPLETO Y CORREGIDO) -->
+<!-- src/components/uploader/FileUpload.vue -->
 <template>
   <div 
     class="uploader-container"
@@ -119,14 +119,6 @@ const removeFile = (index) => {
   selectedFiles.value.splice(index, 1);
 };
 
-// Esta es la función que el padre quiere llamar
-const clear = () => {
-  selectedFiles.value.forEach(file => URL.revokeObjectURL(file.previewUrl));
-  selectedFiles.value = [];
-};
-
-onUnmounted(clear);
-
 const startUpload = async () => {
   if (selectedFiles.value.length === 0) return [];
 
@@ -202,16 +194,30 @@ const startUpload = async () => {
   return uploadedFilesData;
 };
 
-// ** LA SOLUCIÓN CLAVE ESTÁ AQUÍ **
-// Exponemos explícitamente las funciones que el componente padre (SubmissionSuccess) necesita llamar.
+// --- INICIO DE LA MODIFICACIÓN (1 de 3) ---
+// Se renombra la función 'clear' a 'reset' para que sea más estándar y coincida
+// con lo que los componentes padres esperan llamar. La lógica interna no cambia.
+const reset = () => {
+  selectedFiles.value.forEach(file => URL.revokeObjectURL(file.previewUrl));
+  selectedFiles.value = [];
+};
+
+// --- INICIO DE LA MODIFICACIÓN (2 de 3) ---
+// El hook onUnmounted ahora llama a la nueva función 'reset'.
+onUnmounted(reset);
+
+// --- INICIO DE LA MODIFICACIÓN (3 de 3) ---
+// Exponemos las funciones y propiedades que el padre necesita.
+// - 'reset': para que el padre pueda limpiar el componente.
+// - 'hasFiles': para que el padre pueda saber si hay archivos seleccionados.
 defineExpose({
   startUpload,
-  clear
+  reset,
+  hasFiles
 });
 </script>
 
 <style scoped>
-/* (El CSS permanece sin cambios) */
 .uploader-container {
   width: 100%;
   border: 2px dashed #cbd5e1;
