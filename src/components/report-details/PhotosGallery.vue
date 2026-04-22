@@ -23,7 +23,7 @@
         :key="photo.id"
         :photo="photo"
         @view="openLightbox(index)"
-        @delete="handleDeletePhoto"
+        @delete="requestDeletePhoto"
       />
     </div>
     
@@ -47,11 +47,40 @@
       :index="activePhotoIndex"
       @hide="closeLightbox"
     />
+
+    <Transition name="modal-fade">
+      <div v-if="photoPendingDelete" class="confirm-backdrop" @click.self="cancelDeletePhoto">
+        <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-photo-title">
+          <div class="confirm-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+          </div>
+          <div class="confirm-content">
+            <h4 id="delete-photo-title">Eliminar evidencia</h4>
+            <p>
+              Se eliminara <strong>{{ photoPendingDelete.caption }}</strong>. Esta accion no se puede deshacer.
+            </p>
+          </div>
+          <div class="confirm-actions">
+            <button type="button" class="cancel-button" @click="cancelDeletePhoto">Cancelar</button>
+            <button
+              type="button"
+              class="delete-button"
+              :disabled="deleteCountdown > 0"
+              @click="confirmDeletePhoto"
+            >
+              {{ deleteCountdown > 0 ? `Eliminar en ${deleteCountdown}s` : 'Eliminar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { supabase } from '../../services/supabase';
 import PhotoCard from './PhotoCard.vue';
 // --- CAMBIO: Se elimina la importación del visor antiguo ---
@@ -83,6 +112,9 @@ const isLoading = ref(true);
 const photos = ref([]); 
 const isLightboxOpen = ref(false);
 const activePhotoIndex = ref(0);
+const photoPendingDelete = ref(null);
+const deleteCountdown = ref(0);
+let deleteTimer = null;
 const R2_PUBLIC_URL = import.meta.env.VITE_R2_PUBLIC_URL;
 
 // --- CAMBIO: Propiedad computada para adaptar los datos al nuevo visor ---
@@ -122,6 +154,9 @@ const fetchPhotos = async () => {
 };
 
 onMounted(fetchPhotos);
+onUnmounted(() => {
+  clearDeleteTimer();
+});
 
 // --- MÉTODOS Y FUNCIONES "GANCHO" ---
 
@@ -147,6 +182,45 @@ const handlePhotosUploaded = (newPhotos) => {
   alert(`${newPhotos.length} fotos listas para ser subidas (simulación).`);
 };
 
+const clearDeleteTimer = () => {
+  if (deleteTimer) {
+    clearInterval(deleteTimer);
+    deleteTimer = null;
+  }
+};
+
+const requestDeletePhoto = (photoId) => {
+  const selectedPhoto = photos.value.find(p => p.id === photoId);
+  if (!selectedPhoto) return;
+
+  clearDeleteTimer();
+  photoPendingDelete.value = selectedPhoto;
+  deleteCountdown.value = 2;
+
+  deleteTimer = setInterval(() => {
+    if (deleteCountdown.value <= 1) {
+      deleteCountdown.value = 0;
+      clearDeleteTimer();
+      return;
+    }
+
+    deleteCountdown.value -= 1;
+  }, 1000);
+};
+
+const cancelDeletePhoto = () => {
+  clearDeleteTimer();
+  photoPendingDelete.value = null;
+  deleteCountdown.value = 0;
+};
+
+const confirmDeletePhoto = () => {
+  if (!photoPendingDelete.value || deleteCountdown.value > 0) return;
+
+  handleDeletePhoto(photoPendingDelete.value.id);
+  cancelDeletePhoto();
+};
+
 const handleDeletePhoto = (photoId) => {
   // TODO: Implementar la lógica de borrado real.
   console.log(`Eliminar foto ID: ${photoId} del área ${props.area}`);
@@ -168,4 +242,24 @@ const handleDeletePhoto = (photoId) => {
 @media (min-width: 1024px) { .gallery-grid { grid-template-columns: repeat(4, 1fr); } }
 .empty-gallery { text-align: center; padding: 2rem; border: 1px dashed #cbd5e1; border-radius: 8px; color: #94a3b8; }
 .empty-gallery .mt-4 { margin-top: 1rem; }
+.confirm-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 1rem; background-color: rgba(15, 23, 42, 0.45); }
+.confirm-dialog { width: min(100%, 420px); border-radius: 8px; background-color: #ffffff; box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25); padding: 1.25rem; display: grid; grid-template-columns: auto 1fr; gap: 1rem; }
+.confirm-icon { width: 40px; height: 40px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: #dc2626; background-color: #fee2e2; }
+.confirm-icon svg { width: 24px; height: 24px; }
+.confirm-content h4 { margin: 0; font-size: 1rem; font-weight: 700; color: #0f172a; }
+.confirm-content p { margin: 0.375rem 0 0; font-size: 0.875rem; line-height: 1.45; color: #475569; }
+.confirm-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.25rem; }
+.cancel-button, .delete-button { min-height: 38px; border-radius: 6px; border: 1px solid transparent; padding: 0 1rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s; }
+.cancel-button { background-color: #ffffff; border-color: #cbd5e1; color: #334155; }
+.cancel-button:hover { background-color: #f8fafc; }
+.delete-button { background-color: #dc2626; color: #ffffff; }
+.delete-button:hover:not(:disabled) { background-color: #b91c1c; }
+.delete-button:disabled { cursor: not-allowed; opacity: 0.65; }
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.18s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+@media (max-width: 480px) {
+  .confirm-dialog { grid-template-columns: 1fr; }
+  .confirm-actions { flex-direction: column-reverse; }
+  .cancel-button, .delete-button { width: 100%; }
+}
 </style>

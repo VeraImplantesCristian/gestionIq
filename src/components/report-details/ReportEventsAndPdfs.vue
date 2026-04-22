@@ -60,6 +60,7 @@ const isLoading = ref(true);
 const errorMsg = ref(null);
 const reporteData = ref(null);
 const logisticaData = ref(null);
+const pagoData = ref(null);
 const pdfHistory = ref([]);
 
 // ** LA SOLUCIÓN DEFINITIVA Y NATIVA **
@@ -103,15 +104,23 @@ const timelineEvents = computed(() => {
       timestamp: logisticaData.value.created_at,
     });
   }
+  if (pagoData.value?.created_at) {
+    events.push({
+      title: 'Pago realizado',
+      description: `Pago realizado el día: ${formatDateTime(pagoData.value.created_at)}`,
+      timestamp: pagoData.value.created_at,
+    });
+  }
   return events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 });
 
 const fetchData = async () => {
   isLoading.value = true;
   errorMsg.value = null;
+  pagoData.value = null;
   try {
     const [reporteRes, logisticaRes, pdfRes] = await Promise.all([
-      supabase.from('reportes').select('created_at, fecha_envio, instrumentador_completado').eq('id', props.reportId).single(),
+      supabase.from('reportes').select('created_at, fecha_envio, instrumentador_completado, pago_id').eq('id', props.reportId).single(),
       supabase.from('logistica_controles').select('created_at, estado').eq('cirugia_id', props.reportId).limit(1).single(),
       supabase.from('pdf_generation_log').select('id, version, generated_at').eq('reporte_id', props.reportId).order('version', { ascending: false })
     ]);
@@ -123,6 +132,17 @@ const fetchData = async () => {
     reporteData.value = reporteRes.data;
     logisticaData.value = logisticaRes.data;
     pdfHistory.value = pdfRes.data || [];
+
+    if (reporteRes.data?.pago_id) {
+      const { data: pago, error: pagoError } = await supabase
+        .from('pagos')
+        .select('created_at')
+        .eq('id', reporteRes.data.pago_id)
+        .single();
+
+      if (pagoError) throw new Error(`Error al cargar datos de pago: ${pagoError.message}`);
+      pagoData.value = pago;
+    }
   } catch (error) {
     console.error('Error en fetchData:', error);
     errorMsg.value = 'No se pudo cargar la información del historial.';
